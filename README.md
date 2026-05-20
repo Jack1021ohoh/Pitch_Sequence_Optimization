@@ -1,6 +1,6 @@
 # Pitch Sequence Transformer
 
-An improved transformer-based model for MLB pitch outcome prediction and optimal pitch sequencing, extending the 42 Analytics paper *"Transformer-Based Baseball Modeling for Pitch Outcome Prediction and Strategy Optimization"*.
+An improved transformer-based model for MLB pitch outcome prediction and optimal pitch sequencing, extending the 42 Analytics paper [*Transformer-Based Baseball Modeling for Pitch Outcome Prediction and Strategy Optimization*](https://www.sloansportsconference.com/research-papers/transformer-based-baseball-modeling-for-pitch-outcome-prediction-and-strategy-optimization).
 
 ## What's New vs. the Paper
 
