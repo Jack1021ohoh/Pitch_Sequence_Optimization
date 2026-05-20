@@ -7,6 +7,9 @@ data/re24_table.json
 68d6be744d7efccc220808eb_Transformer-Based Baseball Modeling for Pitch Outcome Prediction and Strategy Optimization.pdf
 baseball_transformer_improvement_plan.md
 
+checkpoints/
+
 .venv/
 __pycache__/
 *.pyc
+*.pth

@@ -9,7 +9,7 @@ slices out a 400-pitch window ending at the indexed row.
 
 Outputs:
   data/sequences/batter_pitches/{batter_id}.npy   -- shape (T, F)
-  data/sequences/batter_index.parquet             -- (batter_id, end_row, split)
+  data/sequences/batter_index.parquet             -- (batter_id, end_row, split, pitcher_id, game_pk)
 """
 
 import sys
@@ -45,7 +45,7 @@ def build_batter_sequences(
     pitch_dir.mkdir(parents=True, exist_ok=True)
 
     sort_cols = ['batter', 'game_date', 'game_pk', 'at_bat_number', 'pitch_number']
-    needed_cols = sort_cols + ALL_COLS
+    needed_cols = sort_cols + ['pitcher'] + ALL_COLS
 
     frames = []
     for split in SPLITS:
@@ -83,12 +83,15 @@ def build_batter_sequences(
         np.save(pitch_dir / f'{batter_id}.npy', batter_df[ALL_COLS].to_numpy(dtype=np.float32))
 
         # Extract to Python lists before the loop to avoid per-row .loc overhead
-        dates  = batter_df['game_date'].tolist()
-        splits = batter_df['split'].tolist()
-        years  = batter_df['game_date'].dt.year.tolist()
+        dates    = batter_df['game_date'].tolist()
+        splits   = batter_df['split'].tolist()
+        years    = batter_df['game_date'].dt.year.tolist()
+        pitchers = batter_df['pitcher'].tolist()
+        game_pks = batter_df['game_pk'].tolist()
         index_records.extend(
             {'batter_id': batter_id, 'end_row': end_row,
-             'game_date': dates[end_row], 'split': splits[end_row]}
+             'game_date': dates[end_row], 'split': splits[end_row],
+             'pitcher_id': int(pitchers[end_row]), 'game_pk': int(game_pks[end_row])}
             for end_row in range(min_pitches - 1, T)
             # Exclude windows that span an off-season gap
             if years[end_row - min_pitches + 1] == years[end_row]

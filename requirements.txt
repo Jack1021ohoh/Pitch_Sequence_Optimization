@@ -3,3 +3,5 @@ pandas
 pyarrow
 scikit-learn
 pybaseball
+# torch is pre-installed on Colab; install manually for local use:
+# pip install torch --index-url https://download.pytorch.org/whl/cu121
