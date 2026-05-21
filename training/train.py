@@ -23,6 +23,7 @@ import torch
 import torch.nn as nn
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
+from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from models.full_model import PitchOutcomeModel, run_model
@@ -73,7 +74,8 @@ def train_epoch(model, loader, criterion, optimizer, scheduler, device, grad_cli
     total     = {k: 0.0 for k in ('loss', 'cls_loss', 'phy_loss', 'cal_loss')}
     n_batches = 0
 
-    for batch in loader:
+    pbar = tqdm(loader, desc='  train', leave=False)
+    for batch in pbar:
         batch  = {k: v.to(device) for k, v in batch.items()}
         losses = criterion(run_model(model, batch), batch)
 
@@ -86,6 +88,7 @@ def train_epoch(model, loader, criterion, optimizer, scheduler, device, grad_cli
         for k in total:
             total[k] += losses[k].item()
         n_batches += 1
+        pbar.set_postfix(loss=f'{losses["loss"].item():.4f}')
 
     return {k: v / n_batches for k, v in total.items()}
 
@@ -98,7 +101,7 @@ def val_epoch(model, loader, criterion, device):
     all_loc_logits,     all_loc_labels     = [], []
     n_batches = 0
 
-    for batch in loader:
+    for batch in tqdm(loader, desc='    val', leave=False):
         batch = {k: v.to(device) for k, v in batch.items()}
         preds = run_model(model, batch)
         losses = criterion(preds, batch)
