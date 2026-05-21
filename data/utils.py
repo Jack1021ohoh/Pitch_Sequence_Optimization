@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pandas as pd
 
-TRAIN_YEARS = list(range(2015, 2023))
-VAL_YEARS   = [2023]
-TEST_YEARS  = list(range(2024, 2026))
+TRAIN_YEARS = list(range(2021, 2024))
+VAL_YEARS   = [2024]
+TEST_YEARS  = [2025]
 SPLITS      = ('train', 'val', 'test')
 
 
