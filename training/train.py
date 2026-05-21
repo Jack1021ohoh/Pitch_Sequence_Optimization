@@ -42,6 +42,8 @@ def parse_args():
     p.add_argument('--warmup-steps', type=int,   default=1000)
     p.add_argument('--grad-clip',    type=float, default=1.0)
     p.add_argument('--d-model',      type=int,   default=256)
+    p.add_argument('--patience',     type=int,   default=5,
+                   help='Early stopping patience (epochs). 0 to disable.')
     p.add_argument('--resume',       type=str,   default=None)
     return p.parse_args()
 
@@ -151,18 +153,20 @@ def main():
     scheduler = build_scheduler(optimizer, args.warmup_steps, total_steps)
 
     start_epoch = 0
-    best_top4   = 0.0
+    best_val_loss = float('inf')
 
     if args.resume:
         ckpt = torch.load(args.resume, map_location=device)
         model.load_state_dict(ckpt['model'])
         optimizer.load_state_dict(ckpt['optimizer'])
         scheduler.load_state_dict(ckpt['scheduler'])
-        start_epoch = ckpt['epoch'] + 1
-        best_top4   = ckpt['metrics'].get('top4_outcome', 0.0)
+        start_epoch   = ckpt['epoch'] + 1
+        best_val_loss = ckpt['metrics'].get('loss', float('inf'))
         print(f'Resumed from epoch {ckpt["epoch"]}')
 
     print(f'Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}')
+
+    epochs_no_improve = 0
 
     for epoch in range(start_epoch, args.epochs):
         t0 = time.time()
@@ -181,10 +185,16 @@ def main():
 
         save_checkpoint(ckpt_dir / 'latest.pt', epoch, model, optimizer, scheduler, val_metrics)
 
-        if val_metrics['top4_outcome'] > best_top4:
-            best_top4 = val_metrics['top4_outcome']
+        if val_metrics['loss'] < best_val_loss:
+            best_val_loss = val_metrics['loss']
+            epochs_no_improve = 0
             save_checkpoint(ckpt_dir / 'best.pt', epoch, model, optimizer, scheduler, val_metrics)
-            print(f'  -> New best top-4 outcome: {best_top4:.4f}')
+            print(f'  -> New best val loss: {best_val_loss:.4f}')
+        else:
+            epochs_no_improve += 1
+            if args.patience > 0 and epochs_no_improve >= args.patience:
+                print(f'Early stopping: no improvement for {args.patience} epochs.')
+                break
 
     print('Training complete.')
 
