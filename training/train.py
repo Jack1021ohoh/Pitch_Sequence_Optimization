@@ -42,6 +42,7 @@ def parse_args():
     p.add_argument('--warmup-steps', type=int,   default=1000)
     p.add_argument('--grad-clip',    type=float, default=1.0)
     p.add_argument('--d-model',      type=int,   default=256)
+    p.add_argument('--seed',         type=int,   default=42)
     p.add_argument('--patience',     type=int,   default=5,
                    help='Early stopping patience (epochs). 0 to disable.')
     p.add_argument('--resume',       type=str,   default=None)
@@ -138,6 +139,9 @@ def main():
     data_dir = Path(os.environ.get('DATA_DIR', 'data'))
     ckpt_dir = Path(os.environ.get('CKPT_DIR', 'checkpoints'))
     ckpt_dir.mkdir(parents=True, exist_ok=True)
+
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Device: {device}')
