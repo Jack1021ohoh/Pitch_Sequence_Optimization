@@ -162,6 +162,8 @@ def main():
         scheduler.load_state_dict(ckpt['scheduler'])
         start_epoch   = ckpt['epoch'] + 1
         best_val_loss = ckpt['metrics'].get('loss', float('inf'))
+        if best_val_loss != best_val_loss:  # NaN check
+            best_val_loss = float('inf')
         print(f'Resumed from epoch {ckpt["epoch"]}')
 
     print(f'Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}')
