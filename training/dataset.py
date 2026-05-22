@@ -85,7 +85,8 @@ class PitchSequenceDataset(Dataset):
         hit_location_label  = int(window[-1, _LABEL_HIT])
         ev_target           = float(window[-1, _OUTCOME_CONT_START])
         la_target           = float(window[-1, _OUTCOME_CONT_START + 1])
-        is_contact          = pitch_outcome_label in _CONTACT_LABELS
+        is_contact          = (pitch_outcome_label in _CONTACT_LABELS
+                               and not (np.isnan(ev_target) or np.isnan(la_target)))
 
         window[-1, _OUTCOME_CONT_START:_OUTCOME_CONT_END] = 0.0
         window[-1, _CAT_PITCH_OUTCOME] = 0

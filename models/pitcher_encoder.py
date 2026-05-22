@@ -73,6 +73,10 @@ class HierarchicalPitcherEncoder(nn.Module):
         counts = valid.sum(dim=1, keepdim=True).clamp(min=1).float()
         app_embed = (encoded * valid.unsqueeze(-1)).sum(dim=1) / counts   # (B*K, d_pitch)
         app_embed = app_embed.view(B, K, -1)                              # (B, K, d_pitch)
+        # All-padded pitch sequences (padded appearance slots) produce NaN via
+        # softmax([-inf,...,-inf]). Zero them out before the appearance encoder
+        # so NaN doesn't poison Q/K/V projections for valid appearance positions.
+        app_embed = torch.nan_to_num(app_embed, nan=0.0)
 
         # Level 2: project + encode across K appearance tokens
         app_tokens = self.app_proj(
