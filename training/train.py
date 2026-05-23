@@ -124,13 +124,14 @@ def val_epoch(model, loader, criterion, device):
     return metrics
 
 
-def save_checkpoint(path, epoch, model, optimizer, scheduler, metrics):
+def save_checkpoint(path, epoch, model, optimizer, scheduler, metrics, epochs_no_improve=0):
     torch.save({
-        'epoch':     epoch,
-        'model':     model.state_dict(),
-        'optimizer': optimizer.state_dict(),
-        'scheduler': scheduler.state_dict(),
-        'metrics':   metrics,
+        'epoch':             epoch,
+        'model':             model.state_dict(),
+        'optimizer':         optimizer.state_dict(),
+        'scheduler':         scheduler.state_dict(),
+        'metrics':           metrics,
+        'epochs_no_improve': epochs_no_improve,
     }, path)
 
 
@@ -168,11 +169,12 @@ def main():
         best_val_loss = ckpt['metrics'].get('loss', float('inf'))
         if best_val_loss != best_val_loss:  # NaN check
             best_val_loss = float('inf')
-        print(f'Resumed from epoch {ckpt["epoch"]}')
+        epochs_no_improve = ckpt.get('epochs_no_improve', 0)
+        print(f'Resumed from epoch {ckpt["epoch"]} (no-improve streak: {epochs_no_improve})')
 
     print(f'Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}')
 
-    epochs_no_improve = 0
+    epochs_no_improve = epochs_no_improve if args.resume else 0
 
     for epoch in range(start_epoch, args.epochs):
         t0 = time.time()
@@ -189,12 +191,12 @@ def main():
             f'location {val_metrics["top4_location"]:.4f}'
         )
 
-        save_checkpoint(ckpt_dir / 'latest.pt', epoch, model, optimizer, scheduler, val_metrics)
+        save_checkpoint(ckpt_dir / 'latest.pt', epoch, model, optimizer, scheduler, val_metrics, epochs_no_improve)
 
         if val_metrics['loss'] < best_val_loss:
             best_val_loss = val_metrics['loss']
             epochs_no_improve = 0
-            save_checkpoint(ckpt_dir / 'best.pt', epoch, model, optimizer, scheduler, val_metrics)
+            save_checkpoint(ckpt_dir / 'best.pt', epoch, model, optimizer, scheduler, val_metrics, epochs_no_improve)
             print(f'  -> New best val loss: {best_val_loss:.4f}')
         else:
             epochs_no_improve += 1
