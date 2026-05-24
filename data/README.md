@@ -129,9 +129,9 @@ State encoding: `state = on_1b + on_2b×2 + on_3b×4 + outs×8` (range 0–23).
 
 Shared constants and helpers imported by all scripts above. Not run directly.
 
-- `TRAIN_YEARS = list(range(2015, 2023))`
-- `VAL_YEARS = [2023]`
-- `TEST_YEARS = [2024, 2025]`
+- `TRAIN_YEARS = list(range(2021, 2024))`
+- `VAL_YEARS = [2024]`
+- `TEST_YEARS = [2025]`
 - `load_statcast_years(raw_dir, years, columns=None)` — loads and concatenates yearly parquets
 
 ---
