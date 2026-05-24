@@ -18,9 +18,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from models.full_model import PitchOutcomeModel, N_PITCH_OUTCOME, N_HIT_LOCATION, run_model
 from training.dataset import PitchSequenceDataset, make_dataloader
 from evaluation.metrics import (
-    top_k_precision, log_loss_score, brier_score,
+    top_k_precision, per_class_top4, log_loss_score, brier_score,
     expected_calibration_error, mog_nll, physics_mae,
 )
+
+OUTCOME_NAMES  = [
+    'Ball', 'Strike', 'Single', 'Double', 'Triple',
+    'Home Run', 'Strikeout', 'Walk', 'Hit by Pitch', 'Field Out',
+]
+LOCATION_NAMES = [
+    'Pitcher', 'Catcher', 'First Base', 'Second Base', 'Third Base',
+    'Shortstop', 'Left Field', 'Center Field', 'Right Field', 'None',
+]
 
 
 def parse_args():
@@ -63,16 +72,18 @@ def evaluate(model, loader, device, ev_scale: float, la_scale: float) -> dict:
     contact_mask   = torch.cat(contact_mask_all)
 
     results = {
-        'outcome_top4':     top_k_precision(outcome_logits, outcome_labels, k=4),
-        'outcome_top1':     top_k_precision(outcome_logits, outcome_labels, k=1),
-        'outcome_logloss':  log_loss_score(outcome_logits, outcome_labels),
-        'outcome_brier':    brier_score(outcome_logits, outcome_labels, N_PITCH_OUTCOME),
-        'outcome_ece':      expected_calibration_error(outcome_logits, outcome_labels),
-        'location_top4':    top_k_precision(loc_logits, loc_labels, k=4),
-        'location_top1':    top_k_precision(loc_logits, loc_labels, k=1),
-        'location_logloss': log_loss_score(loc_logits, loc_labels),
-        'location_brier':   brier_score(loc_logits, loc_labels, N_HIT_LOCATION),
-        'location_ece':     expected_calibration_error(loc_logits, loc_labels),
+        'outcome_top4':          top_k_precision(outcome_logits, outcome_labels, k=4),
+        'outcome_top1':          top_k_precision(outcome_logits, outcome_labels, k=1),
+        'outcome_logloss':       log_loss_score(outcome_logits, outcome_labels),
+        'outcome_brier':         brier_score(outcome_logits, outcome_labels, N_PITCH_OUTCOME),
+        'outcome_ece':           expected_calibration_error(outcome_logits, outcome_labels),
+        'outcome_per_class_top4': per_class_top4(outcome_logits, outcome_labels, N_PITCH_OUTCOME, k=4),
+        'location_top4':         top_k_precision(loc_logits, loc_labels, k=4),
+        'location_top1':         top_k_precision(loc_logits, loc_labels, k=1),
+        'location_logloss':      log_loss_score(loc_logits, loc_labels),
+        'location_brier':        brier_score(loc_logits, loc_labels, N_HIT_LOCATION),
+        'location_ece':          expected_calibration_error(loc_logits, loc_labels),
+        'location_per_class_top4': per_class_top4(loc_logits, loc_labels, N_HIT_LOCATION, k=4),
     }
 
     if contact_mask.any():
@@ -97,12 +108,22 @@ def print_report(results: dict):
     print(f'  Log-loss        : {results["outcome_logloss"]:.4f}')
     print(f'  Brier score     : {results["outcome_brier"]:.4f}')
     print(f'  ECE             : {results["outcome_ece"]:.4f}')
+    print('\n  Per-class Top-4 recall:')
+    for name, val in zip(OUTCOME_NAMES, results['outcome_per_class_top4']):
+        v = f'{val:.4f}' if val is not None else '  N/A'
+        print(f'    {name:<16}: {v}')
+
     print('\n── Hit Location ─────────────────────────────────')
     print(f'  Top-4 precision : {results["location_top4"]:.4f}')
     print(f'  Top-1 precision : {results["location_top1"]:.4f}')
     print(f'  Log-loss        : {results["location_logloss"]:.4f}')
     print(f'  Brier score     : {results["location_brier"]:.4f}')
     print(f'  ECE             : {results["location_ece"]:.4f}')
+    print('\n  Per-class Top-4 recall:')
+    for name, val in zip(LOCATION_NAMES, results['location_per_class_top4']):
+        v = f'{val:.4f}' if val is not None else '  N/A'
+        print(f'    {name:<16}: {v}')
+
     if 'ev_nll' in results:
         print('\n── Physics (contact pitches only) ───────────────')
         print(f'  EV NLL          : {results["ev_nll"]:.4f}')

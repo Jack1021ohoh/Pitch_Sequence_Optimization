@@ -79,6 +79,30 @@ def mog_nll(params: torch.Tensor, targets: torch.Tensor) -> float:
     return _mog_nll_tensor(params, targets).item()
 
 
+def per_class_top4(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    n_classes: int,
+    k: int = 4,
+    ignore_index: int = -1,
+) -> list:
+    """Top-k recall per class: for each class c, fraction of true-c samples
+    where c appears in the top-k predicted classes. Returns list of length n_classes
+    (None if class has no samples)."""
+    valid = labels != ignore_index
+    logits, labels = logits[valid], labels[valid]
+    topk = logits.topk(k, dim=-1).indices  # (N, k)
+    results = []
+    for c in range(n_classes):
+        mask = labels == c
+        if not mask.any():
+            results.append(None)
+        else:
+            correct = (topk[mask] == c).any(dim=1).float().mean().item()
+            results.append(correct)
+    return results
+
+
 def mog_mean(params: torch.Tensor) -> torch.Tensor:
     K       = N_MOG_COMPONENTS
     weights = torch.softmax(params[:, :K], dim=-1)
