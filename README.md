@@ -93,7 +93,7 @@ See [`evaluation/README.md`](evaluation/README.md) for metric definitions.
 ## Data
 
 - **Source:** MLB Statcast via [pybaseball](https://github.com/jldbc/pybaseball)
-- **Split:** Train 2015–2022 | Val 2023 | Test 2024–2025
+- **Split:** Train 2021–2023 | Val 2024 | Test 2025 (limited to 2021–2025 due to computing constraints)
 - **Storage:** Data files are excluded from this repo (see `.gitignore`). Store on Google Drive for Colab access.
 
 ```python

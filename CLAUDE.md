@@ -4,9 +4,11 @@
 
 | Split | Years       |
 |-------|-------------|
-| Train | 2015–2022   |
-| Val   | 2023        |
-| Test  | 2024–2025   |
+| Train | 2021–2023   |
+| Val   | 2024        |
+| Test  | 2025        |
+
+Limited to 2021–2025 due to computing constraints.
 
 Scalers and vocabularies are **fit on training data only** (`preprocess.py`) and applied to val/test without refitting.
 
