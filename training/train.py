@@ -191,8 +191,6 @@ def main():
             f'location {val_metrics["top4_location"]:.4f}'
         )
 
-        save_checkpoint(ckpt_dir / 'latest.pt', epoch, model, optimizer, scheduler, val_metrics, epochs_no_improve)
-
         if val_metrics['loss'] < best_val_loss:
             best_val_loss = val_metrics['loss']
             epochs_no_improve = 0
@@ -202,7 +200,10 @@ def main():
             epochs_no_improve += 1
             if args.patience > 0 and epochs_no_improve >= args.patience:
                 print(f'Early stopping: no improvement for {args.patience} epochs.')
+                save_checkpoint(ckpt_dir / 'latest.pt', epoch, model, optimizer, scheduler, val_metrics, epochs_no_improve)
                 break
+
+        save_checkpoint(ckpt_dir / 'latest.pt', epoch, model, optimizer, scheduler, val_metrics, epochs_no_improve)
 
     print('Training complete.')
 
