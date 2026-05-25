@@ -19,8 +19,7 @@ import sys
 import time
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
+import json
 import torch
 import torch.nn as nn
 from torch.optim import AdamW
@@ -28,7 +27,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from models.full_model import PitchOutcomeModel, run_model, N_PITCH_OUTCOME, N_HIT_LOCATION
+from models.full_model import PitchOutcomeModel, run_model
 from training.dataset import PitchSequenceDataset, make_dataloader
 from training.loss import MultiTaskLoss
 from evaluation.metrics import top_k_precision
@@ -50,23 +49,6 @@ def parse_args():
     p.add_argument('--resume',       type=str,   default=None)
     return p.parse_args()
 
-
-def compute_class_weights(data_dir: Path, device):
-    labels = pd.read_parquet(
-        data_dir / 'processed' / 'pitches_train.parquet',
-        columns=['pitch_outcome_label', 'hit_location_label'],
-    )
-    def inv_freq(vals, n_classes):
-        vals = vals[vals >= 0]
-        counts = np.bincount(vals, minlength=n_classes).clip(min=1).astype(float)
-        w = len(vals) / (n_classes * counts)
-        w = w / w.min()
-        w = w.clip(max=10.0)  # cap at 10× to avoid extreme gradients for tiny classes
-        return torch.tensor(w, dtype=torch.float32, device=device)
-    return (
-        inv_freq(labels['pitch_outcome_label'].values, N_PITCH_OUTCOME),
-        inv_freq(labels['hit_location_label'].values,  N_HIT_LOCATION),
-    )
 
 
 def build_dataloaders(data_dir: Path, batch_size: int, num_workers: int):
@@ -172,9 +154,12 @@ def main():
     total_steps = args.epochs * len(train_loader)
 
     print('Building model...')
-    model            = PitchOutcomeModel(d_model=args.d_model).to(device)
-    outcome_w, loc_w = compute_class_weights(data_dir, device)
-    criterion        = MultiTaskLoss(outcome_weights=outcome_w, location_weights=loc_w)
+    model = PitchOutcomeModel(d_model=args.d_model).to(device)
+    with open(data_dir / 'artifacts' / 'class_weights.json') as f:
+        cw = json.load(f)
+    outcome_w = torch.tensor(cw['outcome'],  dtype=torch.float32, device=device)
+    loc_w     = torch.tensor(cw['location'], dtype=torch.float32, device=device)
+    criterion = MultiTaskLoss(outcome_weights=outcome_w, location_weights=loc_w)
     optimizer        = AdamW(model.parameters(), lr=args.lr, weight_decay=1e-2)
     scheduler = build_scheduler(optimizer, args.warmup_steps, total_steps)
 

@@ -16,6 +16,7 @@ import pickle
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
@@ -190,7 +191,28 @@ def build_vocabs() -> dict:
     return vocabs
 
 
-def save_artifacts(scaler, outcome_scaler, vocabs, artifact_dir: str) -> None:
+def compute_class_weights(df: pd.DataFrame) -> dict:
+    """Inverse-frequency class weights from training labels, capped at 10×."""
+    def inv_freq(vals, n_classes):
+        counts = np.bincount(vals, minlength=n_classes).clip(min=1).astype(float)
+        w = len(vals) / (n_classes * counts)
+        w = w / w.min()
+        return w.clip(max=10.0).tolist()
+
+    outcome_map = {cls: i for i, cls in enumerate(OUTCOME_CLASSES)}
+    outcome_vals = df['pitch_outcome'].map(outcome_map).dropna().astype(int).values
+
+    loc_map = {cls: i for i, cls in enumerate(HIT_LOCATION_CLASSES)}
+    contact_df = df[~df['pitch_outcome'].isin(NON_CONTACT_OUTCOMES)]
+    loc_vals = contact_df['hit_location_class'].map(loc_map).dropna().astype(int).values
+
+    return {
+        'outcome':  inv_freq(outcome_vals, len(OUTCOME_CLASSES)),
+        'location': inv_freq(loc_vals, len(HIT_LOCATION_CLASSES)),
+    }
+
+
+def save_artifacts(scaler, outcome_scaler, vocabs, class_weights, artifact_dir: str) -> None:
     out = Path(artifact_dir)
     out.mkdir(parents=True, exist_ok=True)
     with open(out / 'scaler.pkl', 'wb') as f:
@@ -200,6 +222,8 @@ def save_artifacts(scaler, outcome_scaler, vocabs, artifact_dir: str) -> None:
     json_vocabs = {col: {str(k): v for k, v in mapping.items()} for col, mapping in vocabs.items()}
     with open(out / 'vocabs.json', 'w') as f:
         json.dump(json_vocabs, f, indent=2)
+    with open(out / 'class_weights.json', 'w') as f:
+        json.dump(class_weights, f, indent=2)
     print(f'Artifacts saved -> {out}')
 
 
@@ -283,7 +307,8 @@ def main(
     scaler         = fit_scaler(df_train, CONTINUOUS_COLS)
     outcome_scaler = fit_scaler(df_train, outcome_cols)
     vocabs         = build_vocabs()
-    save_artifacts(scaler, outcome_scaler, vocabs, artifact_dir)
+    weights        = compute_class_weights(df_train)
+    save_artifacts(scaler, outcome_scaler, vocabs, weights, artifact_dir)
 
     print('Encoding train...')
     encode_and_save(df_train, scaler, outcome_scaler, vocabs, f'{output_dir}/pitches_train.parquet')
