@@ -28,7 +28,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from models.full_model import PitchOutcomeModel, run_model
+from models.full_model import PitchOutcomeModel, run_model, N_PITCH_OUTCOME, N_HIT_LOCATION
 from training.dataset import PitchSequenceDataset, make_dataloader
 from training.loss import MultiTaskLoss
 from evaluation.metrics import top_k_precision
@@ -52,20 +52,21 @@ def parse_args():
 
 
 def compute_class_weights(data_dir: Path, device):
-    from models.full_model import N_PITCH_OUTCOME, N_HIT_LOCATION
     labels = pd.read_parquet(
         data_dir / 'processed' / 'pitches_train.parquet',
         columns=['pitch_outcome_label', 'hit_location_label'],
     )
-    def inv_freq(col, n_classes):
-        vals = labels[col].values
+    def inv_freq(vals, n_classes):
         vals = vals[vals >= 0]
         counts = np.bincount(vals, minlength=n_classes).clip(min=1).astype(float)
         w = len(vals) / (n_classes * counts)
-        w = w / w.min()       # normalise so min weight = 1
+        w = w / w.min()
         w = w.clip(max=10.0)  # cap at 10× to avoid extreme gradients for tiny classes
         return torch.tensor(w, dtype=torch.float32, device=device)
-    return inv_freq('pitch_outcome_label', N_PITCH_OUTCOME), inv_freq('hit_location_label', N_HIT_LOCATION)
+    return (
+        inv_freq(labels['pitch_outcome_label'].values, N_PITCH_OUTCOME),
+        inv_freq(labels['hit_location_label'].values,  N_HIT_LOCATION),
+    )
 
 
 def build_dataloaders(data_dir: Path, batch_size: int, num_workers: int):
