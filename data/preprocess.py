@@ -101,6 +101,11 @@ _FLOAT_HIT_LOCATION_MAP = {float(k): v for k, v in HIT_LOCATION_MAP.items()}
 
 HIT_LOCATION_CLASSES = list(HIT_LOCATION_MAP.values()) + ['None']
 
+# Outcomes with no batted-ball location. Statcast sometimes records a fielder
+# (e.g. hit_location=2 for strikeouts because the catcher catches the ball),
+# but that is not a spatial batted-ball location — suppress it.
+NON_CONTACT_OUTCOMES = {'Ball', 'Strike', 'Strikeout', 'Walk', 'Hit by Pitch'}
+
 VALID_PITCH_TYPES = {'FF', 'SL', 'CH', 'CU', 'SI', 'FC', 'FS', 'ST', 'KC', 'SV', 'CS', 'FO'}
 
 # ---------------------------------------------------------------------------
@@ -139,6 +144,7 @@ def add_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
         .map(_FLOAT_HIT_LOCATION_MAP)
         .fillna('None')
     )
+    df.loc[df['pitch_outcome'].isin(NON_CONTACT_OUTCOMES), 'hit_location_class'] = 'None'
 
     for base in ['on_1b', 'on_2b', 'on_3b']:
         df[base] = df[base].notna().astype(int)
@@ -247,6 +253,8 @@ def encode_and_save(df: pd.DataFrame, scaler, outcome_scaler, vocabs, output_pat
     # Labels use -1 for unknowns (invalid training targets); cat_ columns use 0 (valid masked input)
     df['pitch_outcome_label'] = df['pitch_outcome'].map(vocabs['pitch_outcome']).fillna(-1).astype(int)
     df['hit_location_label']  = df['hit_location_class'].map(vocabs['hit_location_class']).fillna(-1).astype(int)
+    # Location label is not a valid training target for non-contact plays.
+    df.loc[df['pitch_outcome'].isin(NON_CONTACT_OUTCOMES), 'hit_location_label'] = -1
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(output_path, index=False)
