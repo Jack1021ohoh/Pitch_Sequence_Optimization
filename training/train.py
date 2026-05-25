@@ -19,6 +19,8 @@ import sys
 import time
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 from torch.optim import AdamW
@@ -47,6 +49,23 @@ def parse_args():
                    help='Early stopping patience (epochs). 0 to disable.')
     p.add_argument('--resume',       type=str,   default=None)
     return p.parse_args()
+
+
+def compute_class_weights(data_dir: Path, device):
+    from models.full_model import N_PITCH_OUTCOME, N_HIT_LOCATION
+    labels = pd.read_parquet(
+        data_dir / 'processed' / 'pitches_train.parquet',
+        columns=['pitch_outcome_label', 'hit_location_label'],
+    )
+    def inv_freq(col, n_classes):
+        vals = labels[col].values
+        vals = vals[vals >= 0]
+        counts = np.bincount(vals, minlength=n_classes).clip(min=1).astype(float)
+        w = len(vals) / (n_classes * counts)
+        w = w / w.min()       # normalise so min weight = 1
+        w = w.clip(max=10.0)  # cap at 10× to avoid extreme gradients for tiny classes
+        return torch.tensor(w, dtype=torch.float32, device=device)
+    return inv_freq('pitch_outcome_label', N_PITCH_OUTCOME), inv_freq('hit_location_label', N_HIT_LOCATION)
 
 
 def build_dataloaders(data_dir: Path, batch_size: int, num_workers: int):
@@ -152,9 +171,10 @@ def main():
     total_steps = args.epochs * len(train_loader)
 
     print('Building model...')
-    model     = PitchOutcomeModel(d_model=args.d_model).to(device)
-    criterion = MultiTaskLoss()
-    optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=1e-2)
+    model            = PitchOutcomeModel(d_model=args.d_model).to(device)
+    outcome_w, loc_w = compute_class_weights(data_dir, device)
+    criterion        = MultiTaskLoss(outcome_weights=outcome_w, location_weights=loc_w)
+    optimizer        = AdamW(model.parameters(), lr=args.lr, weight_decay=1e-2)
     scheduler = build_scheduler(optimizer, args.warmup_steps, total_steps)
 
     start_epoch = 0

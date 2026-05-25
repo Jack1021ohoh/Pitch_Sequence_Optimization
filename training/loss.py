@@ -61,17 +61,22 @@ class MultiTaskLoss(nn.Module):
         w_classification: float = 0.7,
         w_physics:        float = 0.2,
         w_calibration:    float = 0.1,
+        outcome_weights:  torch.Tensor = None,
+        location_weights: torch.Tensor = None,
     ):
         super().__init__()
         self.w_cls = w_classification
         self.w_phy = w_physics
         self.w_cal = w_calibration
-        self.ce    = nn.CrossEntropyLoss(ignore_index=-1)
+        self.register_buffer('outcome_weights',  outcome_weights)
+        self.register_buffer('location_weights', location_weights)
 
     def forward(self, preds: dict, batch: dict) -> dict:
         cls_loss = (
-            self.ce(preds['pitch_outcome_logits'], batch['pitch_outcome_label']) +
-            self.ce(preds['hit_location_logits'],  batch['hit_location_label'])
+            F.cross_entropy(preds['pitch_outcome_logits'], batch['pitch_outcome_label'],
+                            weight=self.outcome_weights,  ignore_index=-1) +
+            F.cross_entropy(preds['hit_location_logits'],  batch['hit_location_label'],
+                            weight=self.location_weights, ignore_index=-1)
         )
 
         contact  = batch['is_contact']
