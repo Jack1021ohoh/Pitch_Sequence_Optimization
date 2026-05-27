@@ -64,3 +64,66 @@ Loads a checkpoint, runs inference on one split, and prints a formatted report.
 | `--workers` | 4 | DataLoader workers (use 0 on Windows) |
 
 `DATA_DIR` is read from the environment (default: `data`).
+
+## Test Set Results
+
+Evaluated on 2025 regular-season data (`--split test`) with `best.pt`.
+
+### Pitch Outcome
+
+| Metric | Score |
+|--------|-------|
+| Top-4 precision | 0.9627 |
+| Top-1 precision | 0.5817 |
+| Log-loss | 1.0475 |
+| Brier score | 0.5337 |
+| ECE | 0.0267 |
+
+**Per-class Top-4 recall:**
+
+| Class | Recall |
+|-------|--------|
+| Ball | 0.9795 |
+| Strike | 0.9577 |
+| Single | 0.9820 |
+| Double | 0.3752 |
+| Triple | 0.0000 |
+| Home Run | 0.5652 |
+| Strikeout | 0.9926 |
+| Walk | 0.9853 |
+| Hit by Pitch | 0.9757 |
+| Field Out | 0.9979 |
+
+### Hit Location
+
+| Metric | Score |
+|--------|-------|
+| Top-4 precision | 0.6912 |
+| Top-1 precision | 0.2035 |
+| Log-loss | 2.0492 |
+| Brier score | 0.8559 |
+| ECE | 0.0386 |
+
+**Per-class Top-4 recall:**
+
+| Class | Recall |
+|-------|--------|
+| Pitcher | 0.5115 |
+| Catcher | 0.2221 |
+| First Base | 0.6612 |
+| Second Base | 0.6472 |
+| Third Base | 0.6585 |
+| Shortstop | 0.6276 |
+| Left Field | 0.7462 |
+| Center Field | 0.7515 |
+| Right Field | 0.7258 |
+| None | 0.7673 |
+
+### Physics (contact pitches only)
+
+| Metric | Score |
+|--------|-------|
+| EV NLL | 0.2032 |
+| LA NLL | 1.6356 |
+| EV MAE | 9.99 mph |
+| LA MAE | 20.07° |
