@@ -39,6 +39,7 @@ python data/preprocess.py
 - `data/artifacts/scaler.pkl` — StandardScaler for continuous features
 - `data/artifacts/outcome_scaler.pkl` — StandardScaler for outcome continuous features
 - `data/artifacts/vocabs.json` — integer mappings for all categorical features
+- `data/artifacts/class_weights.json` — inverse-frequency class weights for outcome and hit location (used by `MultiTaskLoss`)
 
 **What it does:**
 - Filters invalid rows (missing keys, unsupported pitch types, intent walks, errors)
@@ -125,6 +126,26 @@ State encoding: `state = on_1b + on_2b×2 + on_3b×4 + outs×8` (range 0–23).
 
 ---
 
+### 6. `build_pitch_library.py`
+
+Builds a per-pitcher pitch library for MCTS action space construction. Only needed for Phase 2.
+
+```bash
+python data/build_pitch_library.py
+```
+
+**Output:** `data/artifacts/pitch_library.pkl`
+
+**Structure:** `{pitcher_id (int) → {pitch_type (str) → {zone (int) → np.ndarray(11,), '_mean' → np.ndarray(11,)}}}`
+
+Each leaf array holds the mean of the 11 standardized continuous features (`feat_*`) for pitches in that (pitcher, type, zone) cell. The `'_mean'` key holds the across-zone mean for the pitch type and is used as a fallback when a specific zone lacks data.
+
+**Thresholds:**
+- Minimum 20 pitches per pitch type (otherwise the type is excluded for that pitcher)
+- Minimum 3 pitches per zone (otherwise only `'_mean'` is recorded for that zone)
+
+---
+
 ### `utils.py`
 
 Shared constants and helpers imported by all scripts above. Not run directly.
@@ -150,7 +171,9 @@ data/
 ├── artifacts/
 │   ├── scaler.pkl
 │   ├── outcome_scaler.pkl
-│   └── vocabs.json
+│   ├── vocabs.json
+│   ├── class_weights.json
+│   └── pitch_library.pkl
 ├── sequences/
 │   ├── batter_index.parquet
 │   ├── batter_pitches/

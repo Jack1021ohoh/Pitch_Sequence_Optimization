@@ -37,7 +37,7 @@ Batter Sequence (400 pitches)     Pitcher Sequence (K appearances)
 ## Phases
 
 - **Phase 1** *(implemented)* — Train the transformer: batter encoder + hierarchical pitcher encoder + cross-attention + classification and physics heads.
-- **Phase 2** *(planned)* — MCTS pitch sequencer using the Phase 1 model as a simulator. No additional training required.
+- **Phase 2** *(implemented)* — MCTS pitch sequencer using the Phase 1 model as a simulator. No additional training required.
 
 ## Setup
 
@@ -59,6 +59,7 @@ python data/preprocess.py                 # clean, encode, save train/val/test p
 python data/build_batter_sequences.py     # sliding 400-pitch windows per batter
 python data/build_pitcher_appearances.py  # per-game appearance records per pitcher
 python data/build_re24_table.py           # RE24 run expectancy table (Phase 2 only)
+python data/build_pitch_library.py        # per-pitcher (pitch_type, zone) feature lookup (Phase 2 only)
 ```
 
 See [`data/README.md`](data/README.md) for details on each script.
@@ -89,6 +90,19 @@ python -m evaluation.evaluate --checkpoint checkpoints/best.pt --split test
 Reports top-4 precision, log-loss, Brier score, and ECE for pitch outcome and hit location; MAE and NLL for exit velocity and launch angle on contact pitches.
 
 See [`evaluation/README.md`](evaluation/README.md) for metric definitions.
+
+## MCTS Pitch Sequencer (Phase 2)
+
+```bash
+python -m mcts.run_search --checkpoint checkpoints/best.pt \
+                           --batter-id 592450 --pitcher-id 605483 \
+                           --n-iter 500 --top-k 10
+```
+
+Omit `--batter-id` / `--pitcher-id` to sample a random at-bat from `--split` (default: test).
+Outputs a ranked table of `(pitch_type, zone)` actions by visit count, Q-value, and share.
+
+See [`mcts/README.md`](mcts/README.md) for algorithm details and all options.
 
 ## Data
 
@@ -125,7 +139,12 @@ pitch_sequence/
 ├── evaluation/
 │   ├── metrics.py           # all metric functions
 │   └── evaluate.py          # evaluation script
-├── mcts/                    # Phase 2 — planned
+├── mcts/
+│   ├── state.py             # AtBatState dataclass + outcome transitions
+│   ├── simulator.py         # PitchSimulator: model wrapper for single-pitch rollouts
+│   ├── node.py              # MCTSNode with UCB1 selection
+│   ├── search.py            # UCT search loop (selection → expansion → rollout → backprop)
+│   └── run_search.py        # CLI entry point
 ├── requirements.txt
 └── README.md
 ```
