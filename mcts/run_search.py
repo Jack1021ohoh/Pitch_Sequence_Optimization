@@ -15,6 +15,7 @@ import os
 import pickle
 import random
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -47,6 +48,13 @@ def parse_args():
     p.add_argument('--max-rollout',  type=int,   default=12)
     p.add_argument('--top-k',        type=int,   default=10)
     p.add_argument('--seed',         type=int,   default=42)
+    p.add_argument('--balls',        type=int,   default=None, choices=[0,1,2,3])
+    p.add_argument('--strikes',      type=int,   default=None, choices=[0,1,2])
+    p.add_argument('--outs',         type=int,   default=None, choices=[0,1,2])
+    p.add_argument('--inning',       type=int,   default=None)
+    p.add_argument('--on-1b',        action='store_true')
+    p.add_argument('--on-2b',        action='store_true')
+    p.add_argument('--on-3b',        action='store_true')
     return p.parse_args()
 
 
@@ -158,6 +166,20 @@ def main():
     arr    = np.load(data_dir / 'sequences' / 'batter_pitches' / f'{batter_id}.npy')
     window = _root_window(arr, end_row)
     state, stand, throws = _initial_state(arr, end_row)
+
+    if args.on_1b or args.on_2b or args.on_3b or \
+            any(v is not None for v in [args.balls, args.strikes, args.outs, args.inning]):
+        state = replace(
+            state,
+            balls   = args.balls   if args.balls   is not None else state.balls,
+            strikes = args.strikes if args.strikes is not None else state.strikes,
+            outs    = args.outs    if args.outs    is not None else state.outs,
+            inning  = args.inning  if args.inning  is not None else state.inning,
+            on_1b   = args.on_1b  or state.on_1b,
+            on_2b   = args.on_2b  or state.on_2b,
+            on_3b   = args.on_3b  or state.on_3b,
+        )
+
     print(f'Count: {state.balls}-{state.strikes} | Outs: {state.outs} | '
           f'Inning: {state.inning} | Batter: {stand} | Pitcher: {throws}')
     runners = ('_' if not state.on_1b else '1') + \
