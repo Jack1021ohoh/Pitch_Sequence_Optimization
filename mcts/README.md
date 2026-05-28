@@ -54,7 +54,7 @@ Omit `--batter-id` / `--pitcher-id` to sample a random at-bat from `--split`.
 
 Immutable frozen dataclass representing the at-bat game state: balls, strikes, outs, base occupancy, inning, score differential. `apply(outcome, run_values)` returns a new state, a run value, and a terminal flag.
 
-Base transitions are simplified (no tag-ups, no double plays, no sac flies). The model is responsible for not predicting impossible outcomes (e.g. Ball at 3-0).
+Base transitions are simplified (no tag-ups, no double plays, no sac flies). Count overflow safeguards handle the rare case where the model predicts `Ball` at a full count instead of `Walk`, or `Strike` at two strikes instead of `Strikeout`.
 
 ### `simulator.py` — `PitchSimulator`
 
