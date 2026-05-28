@@ -1,8 +1,10 @@
 """Build per-pitcher pitch feature library for MCTS action space.
 
-For each (pitcher, pitch_type, zone) seen in training, computes the mean
-standardized continuous feature vector. Used by the MCTS simulator to convert
-a (pitch_type, zone) action into a model-ready 11-dim feature vector.
+For each (pitcher, pitch_type, zone) seen in the test split (2025), computes
+the mean standardized continuous feature vector. Using the most recent season
+ensures pitch properties (velocity, spin, movement) reflect current form.
+Used by the MCTS simulator to convert a (pitch_type, zone) action into a
+model-ready 11-dim feature vector.
 
 Run after preprocess.py:
   python data/build_pitch_library.py
@@ -61,7 +63,7 @@ def build_pitch_library(processed_path: str) -> dict:
 
 
 def main(
-    processed_path: str = 'data/processed/pitches_train.parquet',
+    processed_path: str = 'data/processed/pitches_test.parquet',
     artifact_dir:   str = 'data/artifacts',
 ) -> None:
     library = build_pitch_library(processed_path)

@@ -140,6 +140,8 @@ python data/build_pitch_library.py
 
 Each leaf array holds the mean of the 11 standardized continuous features (`feat_*`) for pitches in that (pitcher, type, zone) cell. The `'_mean'` key holds the across-zone mean for the pitch type and is used as a fallback when a specific zone lacks data.
 
+Built from `pitches_test.parquet` (2025 only) so that pitch properties (velocity, spin, movement) reflect each pitcher's current form rather than multi-year averages.
+
 **Thresholds:**
 - Minimum 20 pitches per pitch type (otherwise the type is excluded for that pitcher)
 - Minimum 3 pitches per zone (otherwise only `'_mean'` is recorded for that zone)
