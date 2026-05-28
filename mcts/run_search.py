@@ -113,7 +113,7 @@ def main():
     _, _, vocabs = load_artifacts(str(data_dir / 'artifacts'))
     with open(data_dir / 'artifacts' / 'pitch_library.pkl', 'rb') as f:
         pitch_library = pickle.load(f)
-    with open(data_dir / 're24_table.json') as f:
+    with open(data_dir / 'artifacts' / 're24_table.json') as f:
         run_values = json.load(f)['run_values']
 
     # ── Model ────────────────────────────────────────────────────────

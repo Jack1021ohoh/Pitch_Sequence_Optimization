@@ -114,13 +114,15 @@ Only needed for Phase 2 (MCTS). Can be skipped for Phase 1 training.
 python data/build_re24_table.py
 ```
 
-**Output:** `data/re24_table.json`
+**Output:** `data/artifacts/re24_table.json`
 ```json
 {
   "re24":       { "0": 0.481, "1": 0.268, ... },
   "run_values": { "home_run": 1.37, "strikeout": -0.28, ... }
 }
 ```
+
+Saved to `data/artifacts/` alongside the other artifacts.
 
 State encoding: `state = on_1b + on_2b×2 + on_3b×4 + outs×8` (range 0–23).
 
@@ -175,7 +177,8 @@ data/
 │   ├── outcome_scaler.pkl
 │   ├── vocabs.json
 │   ├── class_weights.json
-│   └── pitch_library.pkl
+│   ├── pitch_library.pkl
+│   └── re24_table.json
 ├── sequences/
 │   ├── batter_index.parquet
 │   ├── batter_pitches/

@@ -102,7 +102,7 @@ def compute_run_values(df: pd.DataFrame, re24: dict) -> dict:
 
 def main(
     raw_dir:     str = 'data/raw',
-    output_path: str = 'data/re24_table.json',
+    output_path: str = 'data/artifacts/re24_table.json',
 ) -> None:
     print('Loading raw data...')
     df = load_statcast_years(raw_dir, TRAIN_YEARS, columns=RE24_COLUMNS)
