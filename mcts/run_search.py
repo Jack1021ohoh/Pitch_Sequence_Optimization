@@ -38,7 +38,7 @@ _THROWS_MAP = {0: 'L', 1: 'R'}
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument('--checkpoint',   required=True)
+    p.add_argument('--checkpoint',   default=None)
     p.add_argument('--batter-id',    type=int,   default=None)
     p.add_argument('--pitcher-id',   type=int,   default=None)
     p.add_argument('--split',        default='test', choices=['train', 'val', 'test'])
@@ -107,6 +107,7 @@ def main():
     args     = parse_args()
     random.seed(args.seed)
     data_dir = Path(os.environ.get('DATA_DIR', 'data'))
+    ckpt_dir = Path(os.environ.get('CKPT_DIR', 'checkpoints'))
     device   = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # ── Artifacts ────────────────────────────────────────────────────
@@ -117,7 +118,8 @@ def main():
         run_values = json.load(f)['run_values']
 
     # ── Model ────────────────────────────────────────────────────────
-    ckpt  = torch.load(args.checkpoint, map_location=device)
+    ckpt_path = Path(args.checkpoint) if args.checkpoint else ckpt_dir / 'best.pt'
+    ckpt  = torch.load(ckpt_path, map_location=device)
     model = PitchOutcomeModel().to(device)
     model.load_state_dict(ckpt['model'])
     model.eval()
