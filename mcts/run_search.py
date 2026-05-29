@@ -107,7 +107,7 @@ def _print_report(root: MCTSNode, top_k: int) -> None:
         pitch_type, zone = action
         share           = 100 * child.visits / root.visits if root.visits else 0
         print(f'  {rank:<4} {pitch_type:<12} {zone:<6} {child.visits:<8} '
-              f'{child.q_value:<16.4f} {share:.1f}%')
+              f'{child.q_value:<16.6f} {share:.1f}%')
     print()
 
 
