@@ -103,11 +103,11 @@ def _print_report(root: MCTSNode, top_k: int) -> None:
     print(f'  {"#":<4} {"Pitch":<12} {"Zone":<6} {"Visits":<8} {"Q (↑ pitcher)":<16} {"Share"}')
     print('  ' + '─' * 55)
     for rank, action in enumerate(ranked, 1):
-        child           = root.children[action]
+        edge             = root.children[action]
         pitch_type, zone = action
-        share           = 100 * child.visits / root.visits if root.visits else 0
-        print(f'  {rank:<4} {pitch_type:<12} {zone:<6} {child.visits:<8} '
-              f'{child.q_value:<16.6f} {share:.1f}%')
+        share            = 100 * edge.visits / root.visits if root.visits else 0
+        print(f'  {rank:<4} {pitch_type:<12} {zone:<6} {edge.visits:<8} '
+              f'{root.q_value(action):<16.6f} {share:.1f}%')
     print()
 
 
@@ -195,7 +195,6 @@ def main():
     root = MCTSNode(
         state           = state,
         batter_window   = window,
-        action          = None,
         untried_actions = actions,
     )
 
@@ -204,7 +203,7 @@ def main():
     mcts_search(
         root, simulator, p_tensors, pitcher_id, stand, throws,
         actions=actions,
-        n_iter=args.n_iter, c=args.c, max_rollout_depth=args.max_rollout,
+        n_iter=args.n_iter, c=args.c, max_depth=args.max_rollout,
     )
 
     _print_report(root, args.top_k)

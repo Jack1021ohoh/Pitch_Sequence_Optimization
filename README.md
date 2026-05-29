@@ -141,9 +141,9 @@ pitch_sequence/
 │   └── evaluate.py          # evaluation script
 ├── mcts/
 │   ├── state.py             # AtBatState dataclass + outcome transitions
-│   ├── simulator.py         # PitchSimulator: model wrapper for single-pitch rollouts
-│   ├── node.py              # MCTSNode with UCB1 selection
-│   ├── search.py            # UCT search loop (selection → expansion → rollout → backprop)
+│   ├── simulator.py         # PitchSimulator: analytic per-pitch outcome expectation
+│   ├── node.py              # MCTSNode (decision) + ActionEdge (chance) with UCB selection
+│   ├── search.py            # Expectimax-MCTS loop (selection → expansion → Bellman backup)
 │   └── run_search.py        # CLI entry point
 ├── requirements.txt
 └── README.md

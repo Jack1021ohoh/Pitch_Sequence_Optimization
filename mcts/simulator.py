@@ -1,13 +1,14 @@
-"""PitchSimulator: wraps the trained Phase 1 model to simulate one pitch at a time.
+"""PitchSimulator: wraps the trained Phase 1 model to evaluate one pitch by
+averaging analytically over the predicted outcome distribution.
 
-Each call to simulate_pitch():
+Each call to evaluate_pitch():
   1. Slides the batter window (drop oldest pitch, append candidate pitch with mask=1)
-  2. Runs one model forward pass
-  3. Samples an outcome from the predicted distribution
-  4. Fills the outcome back into the window (clears mask flags)
-  5. Applies the outcome to the game state via AtBatState.apply()
+  2. Runs one model forward pass to get the outcome distribution P(o)
+  3. Sums the expected immediate run value Σ_o P(o)·rv(o) (no sampling)
+  4. Returns the non-terminal outcomes (ball, strike) as continuation branches,
+     each with its filled-in window and next AtBatState
 
-The returned window is ready to be passed back in for the next pitch.
+The returned branch windows are ready to be passed back in for the next pitch.
 """
 
 import sys
@@ -17,7 +18,9 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from mcts.state import AtBatState
+from mcts.state import AtBatState, BALL, STRIKE
+
+N_PITCH_OUTCOME = 10   # must match models/full_model.py
 
 # Column indices in the 30-col model input — must match training/dataset.py
 _CAT_START       = 15   # first categorical column
@@ -71,7 +74,7 @@ class PitchSimulator:
     # Simulation
     # ------------------------------------------------------------------
 
-    def simulate_pitch(
+    def evaluate_pitch(
         self,
         state:           AtBatState,
         batter_window:   np.ndarray,        # (400, 30), unmasked history
@@ -80,14 +83,21 @@ class PitchSimulator:
         action:          tuple[str, int],   # (pitch_type, zone)
         batter_stand:    str,
         pitcher_throws:  str,
-    ) -> tuple[np.ndarray, AtBatState, float, bool]:
-        """Simulate one pitch.
+    ) -> tuple[float, list]:
+        """Evaluate one pitch by averaging analytically over the outcome
+        distribution — no sampling.
+
+        A single forward pass gives P(outcome). The expected immediate run value
+        sums P(o)·rv(o) over all 10 outcome classes (ball/strike contribute 0,
+        in-play and strikeout/walk contribute their RE24 run values). Only the
+        non-terminal outcomes (ball, strike) continue the at-bat, so they are
+        returned as branches for the search to recurse on.
 
         Returns:
-            new_window:   (400, 30) with candidate pitch outcome filled in
-            new_state:    updated AtBatState
-            run_value:    run value of the outcome (positive = good for offense)
-            is_terminal:  True when the at-bat ends
+            imm_reward:  Σ_o P(o)·rv(o)  (positive = good for offense)
+            branches:    list of (prob, new_window, new_state) for the
+                         non-terminal continuations (ball / strike). Empty when
+                         every outcome ends the at-bat (e.g. a full count).
         """
         pitch_type, zone = action
 
@@ -105,20 +115,24 @@ class PitchSimulator:
             pitcher_tensors['pitcher_context'],
             pitcher_tensors['pitcher_app_mask'],
         )
+        probs = torch.softmax(preds['pitch_outcome_logits'][0], dim=-1).cpu().numpy()
 
-        outcome_probs = torch.softmax(preds['pitch_outcome_logits'][0], dim=-1).cpu()
-        outcome = int(torch.multinomial(outcome_probs, 1).item())
+        imm_reward = 0.0
+        branches   = []
+        for outcome in range(N_PITCH_OUTCOME):
+            p = float(probs[outcome])
+            new_state, run_value, is_terminal = state.apply(outcome, self.run_values)
+            imm_reward += p * run_value
+            # Only ball/strike that do NOT end the at-bat spawn a continuation.
+            if not is_terminal and outcome in (BALL, STRIKE):
+                branch_window = candidate_window.copy()
+                branch_window[-1, _CAT_OUTCOME] = outcome
+                branch_window[-1, _CAT_HIT_LOC] = 0          # no contact on ball/strike
+                branch_window[-1, _MASK_OUTCOME] = 0.0
+                branch_window[-1, _MASK_HIT_LOC] = 0.0
+                branches.append((p, branch_window, new_state))
 
-        loc_probs = torch.softmax(preds['hit_location_logits'][0], dim=-1).cpu()
-        location  = int(torch.multinomial(loc_probs, 1).item())
-
-        candidate_window[-1, _CAT_OUTCOME]  = outcome
-        candidate_window[-1, _CAT_HIT_LOC]  = location
-        candidate_window[-1, _MASK_OUTCOME]  = 0.0
-        candidate_window[-1, _MASK_HIT_LOC]  = 0.0
-
-        new_state, run_value, is_terminal = state.apply(outcome, self.run_values)
-        return candidate_window, new_state, run_value, is_terminal
+        return imm_reward, branches
 
     # ------------------------------------------------------------------
     # Helpers

@@ -1,17 +1,22 @@
 # MCTS Pitch Sequencer (Phase 2)
 
-UCT (Upper Confidence Trees) search over pitch sequences, using the Phase 1 transformer as a simulator. No additional training required.
+Expectimax MCTS over pitch sequences, using the Phase 1 transformer as a simulator. No additional training required.
 
 ## Algorithm
 
+The pitch outcome is a chance event. Rather than sampling a single outcome per
+node (which froze one run value per node and made every action look identical),
+chance is **averaged analytically** over the model's full outcome distribution.
+
 Each iteration:
 
-1. **Selection** — descend the tree via UCB1 until reaching an unexpanded or terminal node
-2. **Expansion** — pop one untried `(pitch_type, zone)` action, simulate it with the model, and create a child node
-3. **Rollout** — simulate random actions from the new child until the at-bat ends (or depth limit)
-4. **Backpropagation** — update visit counts and value sums along the path
+1. **Selection** — descend via UCB (for a minimiser) into the best action edge, then into the least-visited non-terminal continuation (ball / strike), until a node with an untried action (or a leaf / depth limit) is reached
+2. **Expansion** — pop one untried `(pitch_type, zone)` action and run a single forward pass. The full outcome distribution `P(o)` is folded into a fixed **expected immediate reward** `Σ_o P(o)·rv(o)`; only the non-terminal outcomes (ball, strike) spawn child decision nodes
+3. **Backup** — recompute edge and node values bottom-up via **exact Bellman backup** (not Monte-Carlo averaging), and bump visit counts
 
-**Value convention:** `value_sum` stores cumulative `(-run_value)`, so higher Q is better for the pitcher. The RE24 run expectancy table is the reward signal — outcomes that reduce run expectancy (strikeouts, weak contact) yield positive Q for the pitcher.
+**Value convention:** every stored value is an **offense run value** (positive = good for the batter). The pitcher MINIMISES it, so a decision node's value is the minimum over its expanded action edges, and an edge's value is `imm_reward + Σ_branch P(branch)·child.value`. The CLI negates for display, so a higher reported Q is better for the pitcher. The RE24 run expectancy table is the reward signal.
+
+Because outcome chance is averaged analytically, reported Q-values are exact expectations (continuous, action-dependent) and the ranking does not depend on visit counts. The at-bat terminates naturally — ball/strike branches only exist while the count is below 4 balls / 3 strikes — so no random rollout is needed.
 
 ## Usage
 
@@ -33,7 +38,7 @@ Omit `--batter-id` / `--pitcher-id` to sample a random at-bat from `--split`.
 | `--split` | `test` | Which split to sample from (`train`/`val`/`test`) |
 | `--n-iter` | 500 | Number of UCT iterations |
 | `--c` | 1.4 | UCB1 exploration constant |
-| `--max-rollout` | 12 | Maximum rollout depth before declaring no outcome |
+| `--max-rollout` | 12 | Maximum search depth (continuation pitches); at-bats terminate by ~6 so this is a safeguard |
 | `--top-k` | 10 | Rows to show in the output table |
 | `--seed` | 42 | Random seed for sample selection and rollouts |
 
@@ -58,30 +63,26 @@ Base transitions are simplified (no tag-ups, no double plays, no sac flies). Cou
 
 ### `simulator.py` — `PitchSimulator`
 
-Wraps the trained model to simulate one pitch at a time:
+Wraps the trained model to evaluate one pitch analytically:
 
 1. Slide the 400-pitch batter window (drop oldest, append candidate pitch with mask flags set)
-2. Run one forward pass
-3. Sample outcome and hit location from predicted distributions
-4. Fill sampled values back into the window row (clear mask flags)
-5. Apply outcome to game state via `AtBatState.apply()`
+2. Run one forward pass to get the outcome distribution `P(o)`
+3. Compute the expected immediate reward `Σ_o P(o)·rv(o)` via `AtBatState.apply()` for each outcome class (no sampling)
+4. Return the non-terminal outcomes (ball, strike) as continuation branches, each with its filled-in window and next state
 
 `available_actions(pitcher_id)` returns all `(pitch_type, zone)` pairs with sufficient data in the pitch library for that pitcher.
 
-### `node.py` — `MCTSNode`
+### `node.py` — `MCTSNode` / `ActionEdge`
 
-One node in the search tree. Stores:
-- `state` — current `AtBatState`
-- `batter_window` — `(400, 30)` pitch history ready for the next `simulate_pitch` call
-- `untried_actions` — actions not yet expanded from this node
-- `visits`, `value_sum` — for UCB1
-- `terminal_run_value` — stored on terminal nodes so revisits replay the correct reward without re-simulating
+`MCTSNode` is a **decision node** (a state the pitcher acts in). It stores `state`, `batter_window`, `untried_actions`, `visits`, `value` (offense run value; the pitcher minimises), `depth`, and `children` (one `ActionEdge` per expanded pitch).
 
-`best_action()` returns the most-visited child (robust policy selection). `ranked_actions()` returns all children sorted by visit count.
+`ActionEdge` is the **chance edge** for one pitch: `imm_reward` (expected reward over all outcomes) plus `branches` (the non-terminal ball/strike continuations as `(prob, child_node)`). Its `value = imm_reward + Σ P(branch)·child.value`.
+
+`best_action()` / `ranked_actions()` order pitches by exact value (lowest offense run value = best for the pitcher), not by visit count.
 
 ### `search.py` — `mcts_search`
 
-Runs `n_iter` UCT iterations under a single `torch.no_grad()` context. Terminal nodes that are revisited during selection replay their stored `terminal_run_value` rather than re-simulating.
+Runs `n_iter` expectimax-MCTS iterations under a single `torch.no_grad()` context. Each iteration expands at most one action edge; values are refreshed along the touched path via exact Bellman backup, so reported Q-values converge to true expectations rather than Monte-Carlo estimates.
 
 ### `run_search.py` — CLI entry point
 
