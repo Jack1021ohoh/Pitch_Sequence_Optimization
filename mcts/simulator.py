@@ -12,6 +12,7 @@ The returned branch windows are ready to be passed back in for the next pitch.
 """
 
 import sys
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -46,13 +47,13 @@ class PitchSimulator:
         self,
         model,
         pitch_library: dict,
-        run_values:    dict,
+        re24:          dict,
         vocabs:        dict,
         device:        torch.device,
     ):
         self.model         = model
         self.pitch_library = pitch_library
-        self.run_values    = run_values
+        self.re24          = re24
         self.vocabs        = vocabs
         self.device        = device
         self.model.eval()
@@ -121,7 +122,7 @@ class PitchSimulator:
         branches   = []
         for outcome in range(N_PITCH_OUTCOME):
             p = float(probs[outcome])
-            new_state, run_value, is_terminal = state.apply(outcome, self.run_values)
+            new_state, run_value, is_terminal = state.apply(outcome, self.re24)
             imm_reward += p * run_value
             # Only ball/strike that do NOT end the at-bat spawn a continuation.
             if not is_terminal and outcome in (BALL, STRIKE):
@@ -149,8 +150,16 @@ class PitchSimulator:
     ) -> np.ndarray:
         row = np.zeros(30, dtype=np.float32)
 
-        pt_lib = self.pitch_library.get(pitcher_id, {}).get(pitch_type, {})
-        row[0:11] = pt_lib.get(zone, pt_lib.get('_mean', row[0:11]))
+        pt_lib   = self.pitch_library.get(pitcher_id, {}).get(pitch_type, {})
+        feats    = pt_lib.get(zone) if pt_lib.get(zone) is not None else pt_lib.get('_mean')
+        if feats is not None:
+            row[0:11] = feats
+        else:
+            warnings.warn(
+                f"No physics features for pitcher {pitcher_id} pitch_type {pitch_type!r} "
+                f"zone {zone!r}; using zero vector",
+                stacklevel=2,
+            )
         # cols [11:15] outcome-continuous stay zeroed (masked)
 
         row[_CAT_PITCH_TYPE] = self.vocabs['pitch_type'].get(pitch_type, 0)

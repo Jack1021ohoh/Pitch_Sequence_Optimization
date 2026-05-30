@@ -105,7 +105,8 @@ def _print_report(root: MCTSNode, top_k: int) -> None:
     for rank, action in enumerate(ranked, 1):
         edge             = root.children[action]
         pitch_type, zone = action
-        share            = 100 * edge.visits / root.visits if root.visits else 0
+        total_visits     = sum(e.visits for e in root.children.values()) or 1
+        share            = 100 * edge.visits / total_visits
         print(f'  {rank:<4} {pitch_type:<12} {zone:<6} {edge.visits:<8} '
               f'{root.q_value(action):<16.6f} {share:.1f}%')
     print()
@@ -123,7 +124,8 @@ def main():
     with open(data_dir / 'artifacts' / 'pitch_library.pkl', 'rb') as f:
         pitch_library = pickle.load(f)
     with open(data_dir / 'artifacts' / 're24_table.json') as f:
-        run_values = json.load(f)['run_values']
+        _re24_data = json.load(f)
+    re24 = _re24_data['re24']
 
     # ── Model ────────────────────────────────────────────────────────
     ckpt_path = Path(args.checkpoint) if args.checkpoint else ckpt_dir / 'best.pt'
@@ -188,7 +190,7 @@ def main():
     print(f'Runners: {runners}')
 
     p_tensors = _pitcher_tensors(dataset, pitcher_id, game_pk, device)
-    simulator = PitchSimulator(model, pitch_library, run_values, vocabs, device)
+    simulator = PitchSimulator(model, pitch_library, re24, vocabs, device)
     actions   = simulator.available_actions(pitcher_id)
     print(f'Repertoire: {len(actions)} (pitch_type, zone) actions\n')
 

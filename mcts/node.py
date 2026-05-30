@@ -18,6 +18,7 @@ that a higher reported Q is better for the pitcher.
 """
 
 import math
+import random
 
 import numpy as np
 
@@ -50,8 +51,11 @@ class ActionEdge:
         self.value = self._compute()
 
     def pick_branch_child(self) -> 'MCTSNode':
-        """Least-visited non-terminal continuation (round-robins ball vs strike)."""
-        return min(self.branches, key=lambda pc: pc[1].visits)[1]
+        """Sample a continuation proportional to branch probability."""
+        probs = np.array([p for p, _ in self.branches], dtype=np.float64)
+        probs /= probs.sum()
+        idx = np.random.choice(len(self.branches), p=probs)
+        return self.branches[idx][1]
 
 
 class MCTSNode:
@@ -89,11 +93,16 @@ class MCTSNode:
 
     def select_edge(self, c: float) -> tuple[tuple, ActionEdge]:
         """UCB selection for a MINIMISER: pick the lowest-value edge, with an
-        exploration bonus that lowers the score of rarely-visited edges."""
+        exploration bonus that lowers the score of rarely-visited edges.
+
+        Unvisited edges are sampled uniformly at random so initialization order
+        (dict insertion) does not bias which actions get explored first.
+        """
+        unvisited = [(a, e) for a, e in self.children.items() if e.visits == 0]
+        if unvisited:
+            return random.choice(unvisited)
         best_action, best_edge, best_score = None, None, math.inf
         for action, edge in self.children.items():
-            if edge.visits == 0:
-                return action, edge
             score = edge.value - c * math.sqrt(math.log(self.visits) / edge.visits)
             if score < best_score:
                 best_action, best_edge, best_score = action, edge, score
@@ -117,7 +126,7 @@ class MCTSNode:
         return -self.children[action].value
 
     def ranked_actions(self) -> list[tuple]:
-        """Actions sorted by pitcher value descending (best pitch first).
+        """Actions sorted by ascending offense run value (best pitch for pitcher first).
 
         Values are exact analytic expectations, so this ranking is meaningful
         regardless of visit counts (unlike Monte-Carlo visit-count ranking)."""

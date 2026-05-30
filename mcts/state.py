@@ -19,18 +19,6 @@ WALK         = 7
 HIT_BY_PITCH = 8
 FIELD_OUT    = 9
 
-# Maps outcome index → run_values key in re24_table.json
-_RUN_VALUE_KEY = {
-    SINGLE:       'single',
-    DOUBLE:       'double',
-    TRIPLE:       'triple',
-    HOME_RUN:     'home_run',
-    STRIKEOUT:    'strikeout',
-    WALK:         'walk',
-    HIT_BY_PITCH: 'hit_by_pitch',
-    FIELD_OUT:    'field_out',
-}
-
 
 @dataclass(frozen=True)
 class AtBatState:
@@ -47,32 +35,60 @@ class AtBatState:
         """Encode base-out state as 0–23 for RE24 table lookup."""
         return int(self.on_1b) + int(self.on_2b) * 2 + int(self.on_3b) * 4 + self.outs * 8
 
-    def apply(self, outcome: int, run_values: dict) -> tuple[AtBatState, float, bool]:
+    def apply(self, outcome: int, re24: dict) -> tuple[AtBatState, float, bool]:
         """Apply a pitch outcome to this state.
+
+        Args:
+            outcome: pitch outcome index (0–9)
+            re24:    dict mapping str(base-out index 0–23) → run expectancy
 
         Returns:
             new_state:   updated AtBatState
-            run_value:   run value of this outcome (positive = good for offense)
+            run_value:   RE24 delta (positive = good for offense)
             is_terminal: True when the at-bat has ended
         """
         if outcome == BALL:
             new_balls = self.balls + 1
             if new_balls >= 4:
                 # Safeguard: model should predict Walk, but force it if count overflows
-                return self._advance_walk(), run_values.get('walk', 0.33), True
+                new_state = self._advance_walk()
+                return new_state, self._re24_delta(new_state, 0, re24), True
             return replace(self, balls=new_balls), 0.0, False
 
         if outcome == STRIKE:
             new_strikes = self.strikes + 1
             if new_strikes >= 3:
                 # Safeguard: model should predict Strikeout, but force it if count overflows
-                return replace(self, strikes=new_strikes, outs=self.outs + 1), \
-                       run_values.get('strikeout', -0.28), True
+                new_state = replace(self, balls=0, strikes=0, outs=self.outs + 1)
+                return new_state, self._re24_delta(new_state, 0, re24), True
             return replace(self, strikes=new_strikes), 0.0, False
 
-        rv        = run_values.get(_RUN_VALUE_KEY.get(outcome, ''), 0.0)
-        new_state = self._advance_bases(outcome)
+        new_state   = self._advance_bases(outcome)
+        runs_scored = self._runs_scored(outcome)
+        rv          = self._re24_delta(new_state, runs_scored, re24)
         return new_state, rv, True
+
+    def _re24_delta(self, new_state: 'AtBatState', runs_scored: int, re24: dict) -> float:
+        """RE24 run value: (E[runs | new state] + runs scored) - E[runs | old state]."""
+        old_exp = re24.get(str(self.re24_index()), 0.0)
+        # outs=3 means end of inning → 0 run expectancy
+        new_exp = re24.get(str(new_state.re24_index()), 0.0)
+        return (new_exp + runs_scored) - old_exp
+
+    def _runs_scored(self, outcome: int) -> int:
+        """Runs that score during this terminal outcome (excluding those still on base)."""
+        b1, b2, b3 = int(self.on_1b), int(self.on_2b), int(self.on_3b)
+        if outcome == HOME_RUN:
+            return 1 + b1 + b2 + b3
+        if outcome == TRIPLE:
+            return b1 + b2 + b3        # batter ends on 3rd, all runners score
+        if outcome == DOUBLE:
+            return b2 + b3             # b1 → 3rd, batter → 2nd
+        if outcome == SINGLE:
+            return b3                  # b2 → 3rd, b1 → 2nd, batter → 1st
+        if outcome in (WALK, HIT_BY_PITCH):
+            return b1 & b2 & b3        # force-scores 3rd only when bases loaded
+        return 0                       # STRIKEOUT, FIELD_OUT
 
     # ------------------------------------------------------------------
     # Base transition helpers (simplified — no tag-up, no DP, no sac fly)
