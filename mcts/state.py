@@ -31,20 +31,24 @@ class AtBatState:
     inning:     int  = 1
     score_diff: int  = 0  # fielding_score - batting_score
 
-    def re24_index(self) -> int:
-        """Encode base-out state as 0–23 for RE24 table lookup."""
+    def base_out_index(self) -> int:
+        """Encode base-out state as 0–23."""
         return int(self.on_1b) + int(self.on_2b) * 2 + int(self.on_3b) * 4 + self.outs * 8
 
-    def apply(self, outcome: int, re24: dict) -> tuple[AtBatState, float, bool]:
+    def re288_key(self) -> str:
+        """String key for RE288 lookup: '{balls}-{strikes}-{base_out_index}'."""
+        return f"{self.balls}-{self.strikes}-{self.base_out_index()}"
+
+    def apply(self, outcome: int, re288: dict) -> tuple[AtBatState, float, bool]:
         """Apply a pitch outcome to this state.
 
         Args:
             outcome: pitch outcome index (0–9)
-            re24:    dict mapping str(base-out index 0–23) → run expectancy
+            re288:   dict mapping '{balls}-{strikes}-{base_out}' → run expectancy
 
         Returns:
             new_state:   updated AtBatState
-            run_value:   RE24 delta (positive = good for offense)
+            run_value:   RE288 delta (positive = good for offense)
             is_terminal: True when the at-bat has ended
         """
         if outcome == BALL:
@@ -52,27 +56,30 @@ class AtBatState:
             if new_balls >= 4:
                 # Safeguard: model should predict Walk, but force it if count overflows
                 new_state = self._advance_walk()
-                return new_state, self._re24_delta(new_state, 0, re24), True
-            return replace(self, balls=new_balls), 0.0, False
+                return new_state, self._re288_delta(new_state, self._runs_scored(WALK), re288), True
+            new_state = replace(self, balls=new_balls)
+            return new_state, self._re288_delta(new_state, 0, re288), False
 
         if outcome == STRIKE:
             new_strikes = self.strikes + 1
             if new_strikes >= 3:
                 # Safeguard: model should predict Strikeout, but force it if count overflows
                 new_state = replace(self, balls=0, strikes=0, outs=self.outs + 1)
-                return new_state, self._re24_delta(new_state, 0, re24), True
-            return replace(self, strikes=new_strikes), 0.0, False
+                return new_state, self._re288_delta(new_state, 0, re288), True
+            new_state = replace(self, strikes=new_strikes)
+            return new_state, self._re288_delta(new_state, 0, re288), False
 
         new_state   = self._advance_bases(outcome)
         runs_scored = self._runs_scored(outcome)
-        rv          = self._re24_delta(new_state, runs_scored, re24)
+        rv          = self._re288_delta(new_state, runs_scored, re288)
         return new_state, rv, True
 
-    def _re24_delta(self, new_state: 'AtBatState', runs_scored: int, re24: dict) -> float:
-        """RE24 run value: (E[runs | new state] + runs scored) - E[runs | old state]."""
-        old_exp = re24.get(str(self.re24_index()), 0.0)
-        # outs=3 means end of inning → 0 run expectancy
-        new_exp = re24.get(str(new_state.re24_index()), 0.0)
+    def _re288_delta(self, new_state: 'AtBatState', runs_scored: int, re288: dict) -> float:
+        """RE288 run value: (E[runs | new state] + runs scored) - E[runs | old state].
+        outs=3 states are not in the table and default to 0.0 (end of inning).
+        """
+        old_exp = re288.get(self.re288_key(), 0.0)
+        new_exp = re288.get(new_state.re288_key(), 0.0)
         return (new_exp + runs_scored) - old_exp
 
     def _runs_scored(self, outcome: int) -> int:

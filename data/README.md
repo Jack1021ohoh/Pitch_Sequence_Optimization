@@ -105,26 +105,25 @@ Each `AppearanceRecord` is a dict:
 
 ---
 
-### 5. `build_re24_table.py`
+### 5. `build_re288_table.py`
 
-Computes the RE24 (Run Expectancy by 24 base-out states) table from training data.
+Computes the RE288 (Run Expectancy by 288 count × base-out states) table from training data.
 Only needed for Phase 2 (MCTS). Can be skipped for Phase 1 training.
 
 ```bash
-python data/build_re24_table.py
+python data/build_re288_table.py
 ```
 
-**Output:** `data/artifacts/re24_table.json`
+**Output:** `data/artifacts/re288_table.json`
 ```json
-{
-  "re24":       { "0": 0.481, "1": 0.268, ... },
-  "run_values": { "home_run": 1.37, "strikeout": -0.28, ... }
-}
+{ "0-0-0": 0.432, "0-0-1": 0.812, "1-0-0": 0.501, ... }
 ```
 
-Saved to `data/artifacts/` alongside the other artifacts.
+288 entries = 12 count states (0-0 … 3-2) × 24 base-out states.
 
-State encoding: `state = on_1b + on_2b×2 + on_3b×4 + outs×8` (range 0–23).
+Key format: `"{balls}-{strikes}-{base_out_index}"` where `base_out_index = on_1b + on_2b×2 + on_3b×4 + outs×8` (range 0–23). Missing states default to `0.0` at runtime (e.g. outs=3 = end of inning).
+
+Using RE288 instead of RE24 means non-terminal ball and strike transitions carry an immediate reward signal proportional to how much the count shifted run expectancy — the MCTS penalises count deterioration at each pitch rather than only at at-bat termination.
 
 ---
 
@@ -178,12 +177,12 @@ data/
 │   ├── vocabs.json
 │   ├── class_weights.json
 │   ├── pitch_library.pkl
-│   └── re24_table.json
+│   ├── re24_table.json
+│   └── re288_table.json
 ├── sequences/
 │   ├── batter_index.parquet
 │   ├── batter_pitches/
 │   │   ├── 112345.npy
 │   │   └── ...
 │   └── pitcher_appearances.pkl
-└── re24_table.json
 ```

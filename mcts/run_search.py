@@ -123,9 +123,8 @@ def main():
     _, _, vocabs = load_artifacts(str(data_dir / 'artifacts'))
     with open(data_dir / 'artifacts' / 'pitch_library.pkl', 'rb') as f:
         pitch_library = pickle.load(f)
-    with open(data_dir / 'artifacts' / 're24_table.json') as f:
-        _re24_data = json.load(f)
-    re24 = _re24_data['re24']
+    with open(data_dir / 'artifacts' / 're288_table.json') as f:
+        re288 = json.load(f)
 
     # ── Model ────────────────────────────────────────────────────────
     ckpt_path = Path(args.checkpoint) if args.checkpoint else ckpt_dir / 'best.pt'
@@ -190,7 +189,7 @@ def main():
     print(f'Runners: {runners}')
 
     p_tensors = _pitcher_tensors(dataset, pitcher_id, game_pk, device)
-    simulator = PitchSimulator(model, pitch_library, re24, vocabs, device)
+    simulator = PitchSimulator(model, pitch_library, re288, vocabs, device)
     actions   = simulator.available_actions(pitcher_id)
     print(f'Repertoire: {len(actions)} (pitch_type, zone) actions\n')
 

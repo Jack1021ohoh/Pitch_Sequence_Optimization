@@ -14,7 +14,7 @@ Each iteration:
 2. **Expansion** — pop one untried `(pitch_type, zone)` action and run a single forward pass. The full outcome distribution `P(o)` is folded into a fixed **expected immediate reward** `Σ_o P(o)·rv(o)`; only the non-terminal outcomes (ball, strike) spawn child decision nodes
 3. **Backup** — recompute edge and node values bottom-up via **exact Bellman backup** (not Monte-Carlo averaging), and bump visit counts
 
-**Value convention:** every stored value is an **offense run value** (positive = good for the batter). The pitcher MINIMISES it, so a decision node's value is the minimum over its expanded action edges, and an edge's value is `imm_reward + Σ_branch P(branch)·child.value`. The CLI negates for display, so a higher reported Q is better for the pitcher. The RE24 run expectancy table is the reward signal.
+**Value convention:** every stored value is an **offense run value** (positive = good for the batter). The pitcher MINIMISES it, so a decision node's value is the minimum over its expanded action edges, and an edge's value is `imm_reward + Σ_branch P(branch)·child.value`. The CLI negates for display, so a higher reported Q is better for the pitcher. The **RE288 run expectancy table** (288 states = 12 count states × 24 base-out states) is the reward signal — this means non-terminal ball and strike transitions are also penalised immediately via the count-state RE delta, not just at at-bat termination.
 
 Because outcome chance is averaged analytically, reported Q-values are exact expectations (continuous, action-dependent) and the ranking does not depend on visit counts. The at-bat terminates naturally — ball/strike branches only exist while the count is below 4 balls / 3 strikes — so no random rollout is needed.
 
@@ -57,7 +57,7 @@ Omit `--batter-id` / `--pitcher-id` to sample a random at-bat from `--split`.
 
 ### `state.py` — `AtBatState`
 
-Immutable frozen dataclass representing the at-bat game state: balls, strikes, outs, base occupancy, inning, score differential. `apply(outcome, run_values)` returns a new state, a run value, and a terminal flag.
+Immutable frozen dataclass representing the at-bat game state: balls, strikes, outs, base occupancy, inning, score differential. `apply(outcome, re288)` returns a new state, a run value, and a terminal flag.
 
 Base transitions are simplified (no tag-ups, no double plays, no sac flies). Count overflow safeguards handle the rare case where the model predicts `Ball` at a full count instead of `Walk`, or `Strike` at two strikes instead of `Strikeout`.
 
@@ -95,8 +95,8 @@ The root batter window ends at `end_row - 1` (the 400 pitches leading up to the 
 Phase 1 training and the following data artifacts must exist:
 
 ```
-data/artifacts/pitch_library.pkl    # python data/build_pitch_library.py
-data/re24_table.json                # python data/build_re24_table.py
-data/artifacts/vocabs.json          # python data/preprocess.py
-checkpoints/best.pt                 # python -m training.train
+data/artifacts/pitch_library.pkl      # python data/build_pitch_library.py
+data/artifacts/re288_table.json       # python data/build_re288_table.py
+data/artifacts/vocabs.json            # python data/preprocess.py
+checkpoints/best.pt                   # python -m training.train
 ```

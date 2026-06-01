@@ -47,13 +47,13 @@ class PitchSimulator:
         self,
         model,
         pitch_library: dict,
-        re24:          dict,
+        re288:         dict,
         vocabs:        dict,
         device:        torch.device,
     ):
         self.model         = model
         self.pitch_library = pitch_library
-        self.re24          = re24
+        self.re288         = re288
         self.vocabs        = vocabs
         self.device        = device
         self.model.eval()
@@ -89,10 +89,12 @@ class PitchSimulator:
         distribution — no sampling.
 
         A single forward pass gives P(outcome). The expected immediate run value
-        sums P(o)·rv(o) over all 10 outcome classes (ball/strike contribute 0,
-        in-play and strikeout/walk contribute their RE24 run values). Only the
-        non-terminal outcomes (ball, strike) continue the at-bat, so they are
-        returned as branches for the search to recurse on.
+        sums P(o)·rv(o) over all 10 outcome classes using RE288 deltas: terminal
+        outcomes (in-play, strikeout, walk) contribute the full base-out
+        transition delta; non-terminal ball/strike contribute the count-state
+        delta (e.g. 0-0→1-0), which penalises count deterioration immediately.
+        Only the non-terminal outcomes (ball, strike) continue the at-bat, so
+        they are returned as branches for the search to recurse on.
 
         Returns:
             imm_reward:  Σ_o P(o)·rv(o)  (positive = good for offense)
@@ -122,7 +124,7 @@ class PitchSimulator:
         branches   = []
         for outcome in range(N_PITCH_OUTCOME):
             p = float(probs[outcome])
-            new_state, run_value, is_terminal = state.apply(outcome, self.re24)
+            new_state, run_value, is_terminal = state.apply(outcome, self.re288)
             imm_reward += p * run_value
             # Only ball/strike that do NOT end the at-bat spawn a continuation.
             if not is_terminal and outcome in (BALL, STRIKE):
