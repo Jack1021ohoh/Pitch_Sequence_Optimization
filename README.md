@@ -10,7 +10,7 @@ An improved transformer-based model for MLB pitch outcome prediction and optimal
 | 2 | Starter/reliever asymmetry ignored | Appearance-level tokenization handles it implicitly |
 | 3 | Continuous predictions (EV, LA) failed | Conditional mixture-of-Gaussians physics head |
 | 4 | One-hot categorical encoding | Learned embeddings per categorical variable |
-| 5 | Greedy single-pitch selection | MCTS with RE24 rewards for multi-step planning (Phase 2) |
+| 5 | Greedy single-pitch selection | MCTS with RE288 rewards for multi-step planning (Phase 2) |
 
 ## Architecture
 
@@ -58,7 +58,7 @@ python data/fetch_statcast.py             # download raw Statcast data (2015–2
 python data/preprocess.py                 # clean, encode, save train/val/test parquets
 python data/build_batter_sequences.py     # sliding 400-pitch windows per batter
 python data/build_pitcher_appearances.py  # per-game appearance records per pitcher
-python data/build_re24_table.py           # RE24 run expectancy table (Phase 2 only)
+python data/build_re288_table.py          # RE288 run expectancy table (Phase 2 only)
 python data/build_pitch_library.py        # per-pitcher (pitch_type, zone) feature lookup (Phase 2 only)
 ```
 
@@ -126,6 +126,7 @@ pitch_sequence/
 │   ├── build_batter_sequences.py
 │   ├── build_pitcher_appearances.py
 │   ├── build_re24_table.py
+│   ├── build_re288_table.py
 │   └── utils.py
 ├── models/
 │   ├── embeddings.py        # PitchEmbedding (shared)
