@@ -6,7 +6,7 @@ LightGBM baseline for pitch outcome and hit location prediction. Operates on ind
 
 ### `train_lightgbm.py`
 
-Trains two LightGBM classifiers and evaluates them with top-4 precision per class, matching the metric used in the 42 Analytics paper (Tables 1 & 2).
+Trains two LightGBM classifiers and saves them to `$BASELINE_DIR`.
 
 **Model 1 — Pitch outcome:** 10-class classifier over all pitches.
 
@@ -27,9 +27,10 @@ Trains two LightGBM classifiers and evaluates them with top-4 precision per clas
 # Local
 python baselines/train_lightgbm.py
 
-# Colab (set DATA_DIR first)
+# Override paths (e.g. Colab + Drive):
 import os
-os.environ['DATA_DIR'] = '/content/drive/MyDrive/pitch_sequence/data'
+os.environ['DATA_DIR']     = '/content/drive/MyDrive/pitch_sequence/data'
+os.environ['BASELINE_DIR'] = '/content/drive/MyDrive/pitch_sequence/baselines'
 %run baselines/train_lightgbm.py
 ```
 
@@ -41,6 +42,32 @@ os.environ['DATA_DIR'] = '/content/drive/MyDrive/pitch_sequence/data'
 | `baselines/lgbm_location.txt` | Saved hit location model (LightGBM text format) |
 
 Model files are excluded from version control (see `.gitignore`).
+
+### `evaluate_lightgbm.py`
+
+Loads the saved models and reports full metrics on the test set, matching the format of `evaluation/evaluate.py`.
+
+```bash
+# Local
+python baselines/evaluate_lightgbm.py
+
+# Override paths (e.g. Colab + Drive):
+import os
+os.environ['DATA_DIR']     = '/content/drive/MyDrive/pitch_sequence/data'
+os.environ['BASELINE_DIR'] = '/content/drive/MyDrive/pitch_sequence/baselines'
+%run baselines/evaluate_lightgbm.py
+```
+
+**Metrics reported:**
+
+| Metric | Description |
+|--------|-------------|
+| Top-4 recall | Fraction of pitches where true class is in top-4 predictions |
+| Top-1 accuracy | Fraction of pitches where top prediction is correct |
+| Log-loss | Cross-entropy between predicted probabilities and true labels |
+| Brier score | Mean squared error between predicted probabilities and one-hot labels |
+| ECE | Expected calibration error (10 bins) |
+| Per-class Top-4 recall | Top-4 recall broken down by class |
 
 ## LightGBM Config
 
