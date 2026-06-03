@@ -170,7 +170,6 @@ def main() -> None:
     print('Loading outcome data...')
     X_tr,  y_tr  = load_outcome_split(TRAIN_PATH)
     X_val, y_val = load_outcome_split(VAL_PATH)
-    X_te,  y_te  = load_outcome_split(TEST_PATH)
 
     w_tr  = make_sample_weights(y_tr,  class_weights['outcome'])
     w_val = make_sample_weights(y_val, class_weights['outcome'])
@@ -181,20 +180,12 @@ def main() -> None:
     outcome_model.booster_.save_model(out_path)
     print(f'Saved -> {out_path}')
 
-    proba_te = outcome_model.predict_proba(X_te)
-    recalls = top_k_recall_per_class(y_te.values, proba_te)
-    top1 = (np.argmax(proba_te, axis=1) == y_te.values).mean()
-    print_recall_table(recalls, OUTCOME_CLASSES,
-                       'Top-4 Recall — Pitch Outcomes (Test 2025)')
-    print(f'\n  Top-1 accuracy: {top1:.4f}')
-
     # ------------------------------------------------------------------ #
     # Model 2: Hit location (contact pitches only)                        #
     # ------------------------------------------------------------------ #
     print('\nLoading hit location data...')
     X_tr_l,  y_tr_l  = load_location_split(TRAIN_PATH)
     X_val_l, y_val_l = load_location_split(VAL_PATH)
-    X_te_l,  y_te_l  = load_location_split(TEST_PATH)
 
     w_tr_l  = make_sample_weights(y_tr_l,  class_weights['location'])
     w_val_l = make_sample_weights(y_val_l, class_weights['location'])
@@ -208,13 +199,6 @@ def main() -> None:
     loc_path = f'{OUTPUT_DIR}/lgbm_location.txt'
     location_model.booster_.save_model(loc_path)
     print(f'Saved -> {loc_path}')
-
-    proba_loc = location_model.predict_proba(X_te_l)
-    loc_recalls = top_k_recall_per_class(y_te_l.values, proba_loc)
-    loc_top1 = (np.argmax(proba_loc, axis=1) == y_te_l.values).mean()
-    print_recall_table(loc_recalls, HIT_LOCATION_CLASSES,
-                       'Top-4 Recall — Hit Locations (Test 2025)')
-    print(f'\n  Top-1 accuracy: {loc_top1:.4f}')
 
 
 if __name__ == '__main__':
