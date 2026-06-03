@@ -77,9 +77,20 @@ os.environ['CKPT_DIR'] = '/content/drive/MyDrive/pitch_sequence/checkpoints'
 %run training/train.py --workers 2
 ```
 
-Checkpoints are saved to `CKPT_DIR` (`best.pt` by val top-4 outcome precision, `latest.pt` each epoch).
+Checkpoints are saved to `CKPT_DIR` (`best.pt` by val top-4 outcome recall, `latest.pt` each epoch).
 
 See [`training/README.md`](training/README.md) for all options and the loss function.
+
+## Baselines
+
+Train and evaluate the LightGBM baseline (individual pitches, no sequential context):
+
+```bash
+python baselines/train_lightgbm.py
+python baselines/evaluate_lightgbm.py
+```
+
+See [`baselines/README.md`](baselines/README.md) for features, config, and results.
 
 ## Evaluation
 
@@ -87,9 +98,9 @@ See [`training/README.md`](training/README.md) for all options and the loss func
 python -m evaluation.evaluate --checkpoint checkpoints/best.pt --split test
 ```
 
-Reports top-4 precision, log-loss, Brier score, and ECE for pitch outcome and hit location; MAE and NLL for exit velocity and launch angle on contact pitches.
+Reports top-4 recall, log-loss, Brier score, and ECE for pitch outcome and hit location; MAE and NLL for exit velocity and launch angle on contact pitches.
 
-See [`evaluation/README.md`](evaluation/README.md) for metric definitions.
+See [`evaluation/README.md`](evaluation/README.md) for metric definitions and comparison with the LightGBM baseline.
 
 ## MCTS Pitch Sequencer (Phase 2)
 
@@ -140,6 +151,9 @@ pitch_sequence/
 ├── evaluation/
 │   ├── metrics.py           # all metric functions
 │   └── evaluate.py          # evaluation script
+├── baselines/
+│   ├── train_lightgbm.py    # train LightGBM baseline models
+│   └── evaluate_lightgbm.py # evaluate saved models with full metrics
 ├── mcts/
 │   ├── state.py             # AtBatState dataclass + outcome transitions
 │   ├── simulator.py         # PitchSimulator: analytic per-pitch outcome expectation
