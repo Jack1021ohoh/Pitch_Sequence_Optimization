@@ -103,8 +103,8 @@ def evaluate(model, loader, device, ev_scale: float, la_scale: float) -> dict:
 
 def print_report(results: dict):
     print('\n── Pitch Outcome ───────────────────────────────')
-    print(f'  Top-4 precision : {results["outcome_top4"]:.4f}')
-    print(f'  Top-1 precision : {results["outcome_top1"]:.4f}')
+    print(f'  Top-4 recall    : {results["outcome_top4"]:.4f}')
+    print(f'  Top-1 accuracy  : {results["outcome_top1"]:.4f}')
     print(f'  Log-loss        : {results["outcome_logloss"]:.4f}')
     print(f'  Brier score     : {results["outcome_brier"]:.4f}')
     print(f'  ECE             : {results["outcome_ece"]:.4f}')
@@ -114,8 +114,8 @@ def print_report(results: dict):
         print(f'    {name:<16}: {v}')
 
     print('\n── Hit Location ─────────────────────────────────')
-    print(f'  Top-4 precision : {results["location_top4"]:.4f}')
-    print(f'  Top-1 precision : {results["location_top1"]:.4f}')
+    print(f'  Top-4 recall    : {results["location_top4"]:.4f}')
+    print(f'  Top-1 accuracy  : {results["location_top1"]:.4f}')
     print(f'  Log-loss        : {results["location_logloss"]:.4f}')
     print(f'  Brier score     : {results["location_brier"]:.4f}')
     print(f'  ECE             : {results["location_ece"]:.4f}')
