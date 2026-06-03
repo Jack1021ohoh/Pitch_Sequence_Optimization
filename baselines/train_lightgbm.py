@@ -5,12 +5,18 @@ Trains two models on per-pitch features (no sequential context):
   2. Hit location classifier   — 10 classes, contact pitches only
 
 Evaluates with top-4 precision per class, matching the 42 Analytics paper metric
-(Tables 1 & 2).  Models saved to baselines/lgbm_outcome.txt and
-baselines/lgbm_location.txt.
+(Tables 1 & 2).  Models saved to $BASELINE_DIR/lgbm_outcome.txt and
+$BASELINE_DIR/lgbm_location.txt.
 
 Usage:
     python baselines/train_lightgbm.py
-    DATA_DIR=data python baselines/train_lightgbm.py
+    DATA_DIR=data BASELINE_DIR=baselines python baselines/train_lightgbm.py
+
+    # Override paths (e.g. Colab + Drive):
+    import os
+    os.environ['DATA_DIR']     = '/content/drive/MyDrive/pitch_sequence/data'
+    os.environ['BASELINE_DIR'] = '/content/drive/MyDrive/pitch_sequence/baselines'
+    %run baselines/train_lightgbm.py
 """
 
 import json
@@ -56,7 +62,7 @@ TRAIN_PATH   = f'{DATA_DIR}/processed/pitches_train.parquet'
 VAL_PATH     = f'{DATA_DIR}/processed/pitches_val.parquet'
 TEST_PATH    = f'{DATA_DIR}/processed/pitches_test.parquet'
 WEIGHTS_PATH = f'{DATA_DIR}/artifacts/class_weights.json'
-OUTPUT_DIR   = 'baselines'
+OUTPUT_DIR   = os.environ.get('BASELINE_DIR', 'baselines')
 
 LGB_PARAMS = dict(
     num_leaves=127,
