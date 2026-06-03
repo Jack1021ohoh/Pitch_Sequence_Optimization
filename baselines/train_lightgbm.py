@@ -100,7 +100,7 @@ def make_sample_weights(y: pd.Series, class_weights: list[float]) -> np.ndarray:
 # Evaluation
 # ---------------------------------------------------------------------------
 
-def top_k_precision_per_class(
+def top_k_recall_per_class(
     y_true: np.ndarray,
     proba: np.ndarray,
     k: int = 4,
@@ -116,16 +116,16 @@ def top_k_precision_per_class(
     return results
 
 
-def print_precision_table(
-    precisions: dict[int, float],
+def print_recall_table(
+    recalls: dict[int, float],
     class_names: list[str],
     title: str,
 ) -> None:
     print(f'\n{title}')
-    print(f'  {"Class":<18} {"Top-4 Precision":>16}')
+    print(f'  {"Class":<18} {"Top-4 Recall":>16}')
     print('  ' + '-' * 36)
     for i, name in enumerate(class_names):
-        val = precisions.get(i, float('nan'))
+        val = recalls.get(i, float('nan'))
         val_str = f'{val:.3f}' if not np.isnan(val) else '   N/A'
         print(f'  {name:<18} {val_str:>16}')
 
@@ -182,10 +182,10 @@ def main() -> None:
     print(f'Saved -> {out_path}')
 
     proba_te = outcome_model.predict_proba(X_te)
-    precisions = top_k_precision_per_class(y_te.values, proba_te)
+    recalls = top_k_recall_per_class(y_te.values, proba_te)
     top1 = (np.argmax(proba_te, axis=1) == y_te.values).mean()
-    print_precision_table(precisions, OUTCOME_CLASSES,
-                          'Top-4 Precision — Pitch Outcomes (Test 2025)')
+    print_recall_table(recalls, OUTCOME_CLASSES,
+                       'Top-4 Recall — Pitch Outcomes (Test 2025)')
     print(f'\n  Top-1 accuracy: {top1:.4f}')
 
     # ------------------------------------------------------------------ #
@@ -210,10 +210,10 @@ def main() -> None:
     print(f'Saved -> {loc_path}')
 
     proba_loc = location_model.predict_proba(X_te_l)
-    loc_precisions = top_k_precision_per_class(y_te_l.values, proba_loc)
+    loc_recalls = top_k_recall_per_class(y_te_l.values, proba_loc)
     loc_top1 = (np.argmax(proba_loc, axis=1) == y_te_l.values).mean()
-    print_precision_table(loc_precisions, HIT_LOCATION_CLASSES,
-                          'Top-4 Precision — Hit Locations (Test 2025)')
+    print_recall_table(loc_recalls, HIT_LOCATION_CLASSES,
+                       'Top-4 Recall — Hit Locations (Test 2025)')
     print(f'\n  Top-1 accuracy: {loc_top1:.4f}')
 
 

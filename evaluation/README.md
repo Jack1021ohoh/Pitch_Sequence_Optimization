@@ -38,7 +38,7 @@ Loads a checkpoint, runs inference on one split, and prints a formatted report.
 
 ```
 ── Pitch Outcome ───────────────────────────────
-  Top-4 precision : ...
+  Top-4 recall : ...
   Top-1 precision : ...
   Log-loss        : ...
   Brier score     : ...
@@ -67,13 +67,15 @@ Loads a checkpoint, runs inference on one split, and prints a formatted report.
 
 ## Test Set Results
 
-Evaluated on 2025 regular-season data (`--split test`) with `best.pt`.
+Evaluated on 2025 regular-season data. Transformer uses `best.pt`; LightGBM uses `lgbm_outcome.txt` / `lgbm_location.txt` trained on 2021–2023 and early-stopped on 2024 val.
 
-### Pitch Outcome
+### Transformer
+
+#### Pitch Outcome
 
 | Metric | Score |
 |--------|-------|
-| Top-4 precision | 0.9627 |
+| Top-4 recall | 0.9627 |
 | Top-1 precision | 0.5817 |
 | Log-loss | 1.0475 |
 | Brier score | 0.5337 |
@@ -94,11 +96,11 @@ Evaluated on 2025 regular-season data (`--split test`) with `best.pt`.
 | Hit by Pitch | 0.9757 |
 | Field Out | 0.9979 |
 
-### Hit Location
+#### Hit Location
 
 | Metric | Score |
 |--------|-------|
-| Top-4 precision | 0.6912 |
+| Top-4 recall | 0.6912 |
 | Top-1 precision | 0.2035 |
 | Log-loss | 2.0492 |
 | Brier score | 0.8559 |
@@ -119,7 +121,7 @@ Evaluated on 2025 regular-season data (`--split test`) with `best.pt`.
 | Right Field | 0.7258 |
 | None | 0.7673 |
 
-### Physics (contact pitches only)
+#### Physics (contact pitches only)
 
 | Metric | Score |
 |--------|-------|
@@ -127,3 +129,47 @@ Evaluated on 2025 regular-season data (`--split test`) with `best.pt`.
 | LA NLL | 1.6356 |
 | EV MAE | 9.99 mph |
 | LA MAE | 20.07° |
+
+### LightGBM Baseline
+
+#### Pitch Outcome
+
+| Metric | Score |
+|--------|-------|
+| Top-1 accuracy | 0.5757 |
+
+**Per-class Top-4 recall:**
+
+| Class | Recall |
+|-------|--------|
+| Ball | 0.974 |
+| Strike | 0.952 |
+| Single | 0.989 |
+| Double | 0.486 |
+| Triple | 0.009 |
+| Home Run | 0.246 |
+| Strikeout | 1.000 |
+| Walk | 0.990 |
+| Hit by Pitch | 0.949 |
+| Field Out | 0.997 |
+
+#### Hit Location
+
+| Metric | Score |
+|--------|-------|
+| Top-1 accuracy | 0.1845 |
+
+**Per-class Top-4 recall:**
+
+| Class | Recall |
+|-------|--------|
+| Pitcher | 0.598 |
+| Catcher | 0.166 |
+| First Base | 0.620 |
+| Second Base | 0.639 |
+| Third Base | 0.623 |
+| Shortstop | 0.604 |
+| Left Field | 0.691 |
+| Center Field | 0.637 |
+| Right Field | 0.665 |
+| None | 0.728 |

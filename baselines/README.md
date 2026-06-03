@@ -54,7 +54,7 @@ Model files are excluded from version control (see `.gitignore`).
 
 ## Evaluation Metric
 
-**Top-4 precision per class** — proportion of pitches where the true outcome appears in the model's top-4 predicted probabilities. Chosen because Ball and Strike dominate (~75% of pitches combined), making top-1 accuracy uninformative for rare but strategically important events like Singles, Doubles, and Home Runs.
+**Top-4 recall per class** — for each class c, the fraction of true class-c pitches where c appears in the model's top-4 predicted probabilities. The 42 Analytics paper labels this metric "precision" (Section 4.1) but the computation is recall. Chosen because Ball and Strike dominate (~75% of pitches combined), making top-1 accuracy uninformative for rare but strategically important events like Singles, Doubles, and Home Runs.
 
 ## Data Requirements
 
