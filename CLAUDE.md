@@ -95,5 +95,6 @@ Physics loss (EV/LA NLL) is computed only on contact pitches. Contact is defined
 |----------|---------|---------|
 | `DATA_DIR` | `data` | Root for all processed data |
 | `CKPT_DIR` | `checkpoints` | Where `best.pt` and `latest.pt` are saved |
+| `BASELINE_DIR` | `baselines` | Where LightGBM model files are saved/loaded |
 
 Set these before training on Colab. `best.pt` is saved on val top-4 outcome improvement; `latest.pt` is saved every epoch. Checkpoint keys: `epoch`, `model`, `optimizer`, `scheduler`, `metrics`.
