@@ -136,40 +136,48 @@ Evaluated on 2025 regular-season data. Transformer uses `best.pt`; LightGBM uses
 
 | Metric | Score |
 |--------|-------|
+| Top-4 recall | 0.9581 |
 | Top-1 accuracy | 0.5757 |
+| Log-loss | 1.1137 |
+| Brier score | 0.5573 |
+| ECE | 0.0461 |
 
 **Per-class Top-4 recall:**
 
 | Class | Recall |
 |-------|--------|
-| Ball | 0.974 |
-| Strike | 0.952 |
-| Single | 0.989 |
-| Double | 0.486 |
-| Triple | 0.009 |
-| Home Run | 0.246 |
-| Strikeout | 1.000 |
-| Walk | 0.990 |
-| Hit by Pitch | 0.949 |
-| Field Out | 0.997 |
+| Ball | 0.9738 |
+| Strike | 0.9521 |
+| Single | 0.9886 |
+| Double | 0.4856 |
+| Triple | 0.0091 |
+| Home Run | 0.2463 |
+| Strikeout | 1.0000 |
+| Walk | 0.9898 |
+| Hit by Pitch | 0.9489 |
+| Field Out | 0.9970 |
 
 #### Hit Location
 
 | Metric | Score |
 |--------|-------|
+| Top-4 recall | 0.6417 |
 | Top-1 accuracy | 0.1845 |
+| Log-loss | 2.1330 |
+| Brier score | 0.8687 |
+| ECE | 0.0167 |
 
 **Per-class Top-4 recall:**
 
 | Class | Recall |
 |-------|--------|
-| Pitcher | 0.598 |
-| Catcher | 0.166 |
-| First Base | 0.620 |
-| Second Base | 0.639 |
-| Third Base | 0.623 |
-| Shortstop | 0.604 |
-| Left Field | 0.691 |
-| Center Field | 0.637 |
-| Right Field | 0.665 |
-| None | 0.728 |
+| Pitcher | 0.5976 |
+| Catcher | 0.1663 |
+| First Base | 0.6199 |
+| Second Base | 0.6386 |
+| Third Base | 0.6234 |
+| Shortstop | 0.6045 |
+| Left Field | 0.6910 |
+| Center Field | 0.6372 |
+| Right Field | 0.6646 |
+| None | 0.7284 |
