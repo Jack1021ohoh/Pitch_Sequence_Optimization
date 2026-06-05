@@ -85,9 +85,15 @@ Physics loss (EV/LA NLL) is computed only on contact pitches. Contact is defined
 ## Loss weights
 
 `MultiTaskLoss` default weights: `w_cls=0.7`, `w_phy=0.2`, `w_cal=0.1`.
-- `cls_loss`: CrossEntropy on outcome + location (ignore_index=-1)
+- `cls_loss`: focal loss on outcome + location (ignore_index=-1)
 - `phy_loss`: MoG NLL on EV + LA, contact pitches only
 - `cal_loss`: soft ECE on outcome head only (calibration regularizer)
+
+Classification uses `focal_loss` (`training/loss.py`), not plain CE. Two knobs:
+- `gamma` (default 2.0): focal focusing parameter; `(1 - p_t)^gamma` down-weights easy/frequent classes. `gamma=0` → (weighted) CE.
+- `class_weight_power` (CLI `--class-weight-power`, default 0.0): exponent applied to the inverse-freq class weights from `class_weights.json` before they become the focal alpha. `0` → uniform weights (focal alone handles imbalance), `0.5` → sqrt softening, `1` → raw inverse-freq.
+
+Default config is **focal-only** (`gamma=2.0`, `class_weight_power=0.0`). The two mechanisms are meant to be used one at a time, not stacked.
 
 ## Environment variables
 
@@ -98,3 +104,5 @@ Physics loss (EV/LA NLL) is computed only on contact pitches. Contact is defined
 | `BASELINE_DIR` | `baselines` | Where LightGBM model files are saved/loaded |
 
 Set these before training on Colab. `best.pt` is saved on val top-4 outcome improvement; `latest.pt` is saved every epoch. Checkpoint keys: `epoch`, `model`, `optimizer`, `scheduler`, `metrics`.
+
+**Checkpoint architecture compatibility:** the classification heads take a `2 * d_model` input (cross-attn final repr | raw final-pitch embedding skip). Checkpoints saved before this change have `d_model`-wide heads and cannot be loaded — they must be retrained, not resumed. All loaders (`train.py --resume`, `evaluate.py`, `run_search.py`) go through `load_model_weights()` in `models/full_model.py`, which converts the size-mismatch into a clear "retrain from scratch" error.

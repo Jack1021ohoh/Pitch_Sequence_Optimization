@@ -11,6 +11,7 @@ An improved transformer-based model for MLB pitch outcome prediction and optimal
 | 3 | Continuous predictions (EV, LA) failed | Conditional mixture-of-Gaussians physics head |
 | 4 | One-hot categorical encoding | Learned embeddings per categorical variable |
 | 5 | Greedy single-pitch selection | MCTS with RE288 rewards for multi-step planning (Phase 2) |
+| 6 | Rare contact outcomes drowned out by frequent classes | Focal classification loss + raw final-pitch skip connection into the heads |
 
 ## Architecture
 
@@ -31,8 +32,11 @@ Batter Sequence (400 pitches)     Pitcher Sequence (K appearances)
    Classification Head      Physics Regression Head
    - Pitch outcome (10)     - Exit velocity (MoG)
    - Hit location (10)      - Launch angle (MoG)
-                             (conditional on contact)
+   (+ raw final-pitch        (conditional on contact)
+    skip connection)
 ```
+
+The classification heads additionally receive the raw (pre-transformer) embedding of the masked final pitch as a skip connection, preserving sharp per-pitch signal (location, zone, pitch type, velocity) for rare contact classes. Training uses a focal classification loss (`--gamma`, default focal-only) to keep frequent outcomes from dominating the gradient.
 
 ## Phases
 
