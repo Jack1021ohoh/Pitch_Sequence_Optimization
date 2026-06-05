@@ -39,10 +39,18 @@ class BatterEncoder(nn.Module):
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
-    def forward(self, batter_seq: torch.Tensor) -> torch.Tensor:
+    def forward(self, batter_seq: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         batter_seq: (B, 400, 30)  — columns 0-29 of the stored array (no label cols)
-        Returns:    (B, 400, d_model)
+        Returns:
+            encoded:  (B, 400, d_model)  — transformer output (context-mixed)
+            embedded: (B, 400, d_model)  — pre-transformer pitch embeddings.
+                The final token of `embedded` is the un-smoothed raw representation
+                of the masked pitch; the heads consume it directly to recover the
+                sharp per-pitch signal (location, zone, pitch type, velocity) that the
+                12-layer attention stack would otherwise blur — the residual
+                described in the project plan §3.3.
         """
-        x = self.pos_enc(self.embedding(batter_seq))
-        return self.transformer(x)
+        embedded = self.embedding(batter_seq)
+        encoded  = self.transformer(self.pos_enc(embedded))
+        return encoded, embedded

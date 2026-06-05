@@ -27,7 +27,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from models.full_model import PitchOutcomeModel, run_model
+from models.full_model import PitchOutcomeModel, run_model, load_model_weights
 from training.dataset import PitchSequenceDataset, make_dataloader
 from training.loss import MultiTaskLoss
 from evaluation.metrics import top_k_precision
@@ -42,6 +42,11 @@ def parse_args():
                    help='DataLoader workers. Use 0 on Windows.')
     p.add_argument('--warmup-steps', type=int,   default=1000)
     p.add_argument('--grad-clip',    type=float, default=1.0)
+    p.add_argument('--gamma',        type=float, default=2.0,
+                   help='Focal-loss focusing parameter. 0 = plain weighted CE.')
+    p.add_argument('--class-weight-power', type=float, default=0.0,
+                   help='Exponent on inverse-freq class weights. 1=raw, '
+                        '0.5=sqrt softening, 0=uniform (focal handles imbalance alone).')
     p.add_argument('--d-model',      type=int,   default=256)
     p.add_argument('--seed',         type=int,   default=42)
     p.add_argument('--patience',     type=int,   default=5,
@@ -157,9 +162,9 @@ def main():
     model = PitchOutcomeModel(d_model=args.d_model).to(device)
     with open(data_dir / 'artifacts' / 'class_weights.json') as f:
         cw = json.load(f)
-    outcome_w = torch.tensor(cw['outcome'],  dtype=torch.float32, device=device)
-    loc_w     = torch.tensor(cw['location'], dtype=torch.float32, device=device)
-    criterion = MultiTaskLoss(outcome_weights=outcome_w, location_weights=loc_w)
+    outcome_w = torch.tensor(cw['outcome'],  dtype=torch.float32, device=device) ** args.class_weight_power
+    loc_w     = torch.tensor(cw['location'], dtype=torch.float32, device=device) ** args.class_weight_power
+    criterion = MultiTaskLoss(gamma=args.gamma, outcome_weights=outcome_w, location_weights=loc_w)
     optimizer        = AdamW(model.parameters(), lr=args.lr, weight_decay=1e-2)
     scheduler = build_scheduler(optimizer, args.warmup_steps, total_steps)
 
@@ -168,7 +173,7 @@ def main():
 
     if args.resume:
         ckpt = torch.load(args.resume, map_location=device)
-        model.load_state_dict(ckpt['model'])
+        load_model_weights(model, ckpt['model'])
         optimizer.load_state_dict(ckpt['optimizer'])
         scheduler.load_state_dict(ckpt['scheduler'])
         start_epoch   = ckpt['epoch'] + 1
