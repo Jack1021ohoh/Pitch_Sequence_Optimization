@@ -17,7 +17,7 @@ All metric functions take concatenated tensors over the full split (not per-batc
 | Function | Description |
 |----------|-------------|
 | `top_k_precision(logits, labels, k)` | Fraction of samples where true label is in the top-k predicted classes. Ignores `label == -1`. |
-| `log_loss_score(logits, labels)` | Standard cross-entropy / log-loss (unweighted reporting metric; training optimizes focal loss). |
+| `log_loss_score(logits, labels)` | Cross-entropy loss (same as training CE). |
 | `brier_score(logits, labels, n_classes)` | Mean squared error between predicted probabilities and one-hot targets. |
 | `expected_calibration_error(logits, labels, n_bins=10)` | Weighted mean \|confidence − accuracy\| across 10 equal-width bins. |
 | `mog_nll(params, targets)` | Float wrapper around `training.loss.mog_nll`. Reports mean NLL of the predicted mixture on contact pitches. |

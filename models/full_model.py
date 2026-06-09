@@ -40,15 +40,12 @@ class PitchOutcomeModel(nn.Module):
         )
         self.cross_attn_norm = nn.LayerNorm(d_model)
 
-        # Classification heads receive [cross-attn final repr | raw embedded final
-        # pitch] — the raw skip gives sharp access to location/zone/pitch-type that
-        # the deep encoder smooths out (helps rare contact classes, e.g. doubles).
         self.outcome_head = nn.Sequential(
-            nn.Linear(2 * d_model, d_model // 2), nn.ReLU(),
+            nn.Linear(d_model, d_model // 2), nn.ReLU(),
             nn.Linear(d_model // 2, N_PITCH_OUTCOME),
         )
         self.location_head = nn.Sequential(
-            nn.Linear(2 * d_model, d_model // 2), nn.ReLU(),
+            nn.Linear(d_model, d_model // 2), nn.ReLU(),
             nn.Linear(d_model // 2, N_HIT_LOCATION),
         )
 
@@ -68,7 +65,7 @@ class PitchOutcomeModel(nn.Module):
         pitcher_context:    torch.Tensor,  # (B, K, 7)
         pitcher_app_mask:   torch.Tensor,  # (B, K)          True = padding
     ) -> dict:
-        batter_out, batter_emb = self.batter_encoder(batter_seq)
+        batter_out  = self.batter_encoder(batter_seq)
         pitcher_out = self.pitcher_encoder(
             pitcher_pitches, pitcher_pitch_mask, pitcher_context, pitcher_app_mask,
         )
@@ -80,8 +77,6 @@ class PitchOutcomeModel(nn.Module):
         batter_out = self.cross_attn_norm(batter_out + attn_out)
 
         final_repr = batter_out[:, -1, :]
-        raw_final  = batter_emb[:, -1, :]                       # un-smoothed final-pitch skip
-        cls_in     = torch.cat([final_repr, raw_final], dim=-1)
 
         K = N_MOG_COMPONENTS
         physics_params = self.physics_head(
@@ -89,8 +84,8 @@ class PitchOutcomeModel(nn.Module):
         )
 
         return {
-            'pitch_outcome_logits': self.outcome_head(cls_in),
-            'hit_location_logits':  self.location_head(cls_in),
+            'pitch_outcome_logits': self.outcome_head(final_repr),
+            'hit_location_logits':  self.location_head(final_repr),
             'ev_params':            physics_params[:, :3 * K],
             'la_params':            physics_params[:, 3 * K:],
         }
@@ -104,21 +99,3 @@ def run_model(model: PitchOutcomeModel, batch: dict) -> dict:
         batch['pitcher_context'],
         batch['pitcher_app_mask'],
     )
-
-
-def load_model_weights(model: PitchOutcomeModel, state_dict: dict) -> None:
-    """Load weights into `model`, raising a clear error on architecture mismatch.
-
-    The classification heads take a 2*d_model input (cross-attn final repr | raw
-    embedded final pitch). Checkpoints saved before that change have d_model-wide
-    heads and cannot be loaded — they must be retrained, not resumed.
-    """
-    try:
-        model.load_state_dict(state_dict)
-    except RuntimeError as e:
-        raise RuntimeError(
-            'Failed to load checkpoint weights into PitchOutcomeModel. This usually '
-            'means the checkpoint predates an architecture change (e.g. the 2*d_model '
-            'classification heads) and is incompatible — retrain from scratch rather '
-            f'than resuming/evaluating this checkpoint.\nOriginal error: {e}'
-        ) from e

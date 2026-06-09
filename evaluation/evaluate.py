@@ -15,7 +15,7 @@ from pathlib import Path
 import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from models.full_model import PitchOutcomeModel, N_PITCH_OUTCOME, N_HIT_LOCATION, run_model, load_model_weights
+from models.full_model import PitchOutcomeModel, N_PITCH_OUTCOME, N_HIT_LOCATION, run_model
 from training.dataset import PitchSequenceDataset, make_dataloader
 from evaluation.metrics import (
     top_k_precision, per_class_top4, log_loss_score, brier_score,
@@ -145,7 +145,7 @@ def main():
 
     ckpt  = torch.load(args.checkpoint, map_location=device)
     model = PitchOutcomeModel().to(device)
-    load_model_weights(model, ckpt['model'])
+    model.load_state_dict(ckpt['model'])
     print(f'Loaded checkpoint: {args.checkpoint} (epoch {ckpt["epoch"]})')
 
     ds = PitchSequenceDataset(

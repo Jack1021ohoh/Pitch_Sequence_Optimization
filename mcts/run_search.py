@@ -22,7 +22,7 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from models.full_model  import PitchOutcomeModel, load_model_weights
+from models.full_model  import PitchOutcomeModel
 from training.dataset   import PitchSequenceDataset
 from data.preprocess    import load_artifacts
 from mcts.state         import AtBatState
@@ -130,7 +130,7 @@ def main():
     ckpt_path = Path(args.checkpoint) if args.checkpoint else ckpt_dir / 'best.pt'
     ckpt  = torch.load(ckpt_path, map_location=device)
     model = PitchOutcomeModel().to(device)
-    load_model_weights(model, ckpt['model'])
+    model.load_state_dict(ckpt['model'])
     model.eval()
     print(f'Loaded checkpoint (epoch {ckpt["epoch"]})')
 

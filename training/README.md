@@ -32,18 +32,18 @@ Contact labels (EV/LA targets are only valid for these): `{2, 3, 4, 5, 9}` (Sing
 ### `loss.py` — `MultiTaskLoss`
 
 ```
-total = 0.7 × (outcome_focal + location_focal)
+total = 0.7 × (outcome_CE + location_CE)
       + 0.2 × (EV_NLL + LA_NLL)   [contact pitches only]
       + 0.1 × ECE                  [outcome head only]
 ```
-
-**`focal_loss(logits, targets, gamma, weight, ignore_index=-1)`** — multi-class focal loss with optional per-class alpha weights. Down-weights easy, high-confidence pitches (ball/strike/field-out) by `(1 - p_t)^gamma` so the gradient is not dominated by frequent classes, lifting recall on rare contact classes (double, triple, HR). With `weight`, normalizes by the sum of alpha (matching weighted-CE scale); `gamma=0` reduces to (weighted) cross-entropy. Replaces the previous `F.cross_entropy` for both outcome and location heads. `ignore_index=-1` skips unknown labels.
 
 **`mog_nll(params, targets)`** — mean NLL of a K-component mixture of Gaussians. `params` layout: `[logit_w × K | mu × K | log_sigma × K]`. log_sigma is clamped to `[-3, 3]`. Used by both training (returns tensor for backprop) and evaluation (wrapped to return float).
 
 **`soft_ece(logits, labels)`** — vectorized ECE via `torch.bucketize` + `scatter_add_`. Used as a differentiable calibration regularizer during training.
 
-**`MultiTaskLoss(gamma=2.0, ...).forward`** returns a dict with keys `loss`, `cls_loss`, `phy_loss`, `cal_loss`. `gamma` is the focal focusing parameter; the optional `outcome_weights` / `location_weights` are the per-class alpha terms. The physics and calibration terms are skipped (zero) if there are no contact pitches or no valid labels in the batch.
+**`MultiTaskLoss.forward`** returns a dict with keys `loss`, `cls_loss`, `phy_loss`, `cal_loss`. The physics and calibration terms are skipped (zero) if there are no contact pitches or no valid labels in the batch.
+
+`CrossEntropyLoss` is constructed with `ignore_index=-1` to skip unknown labels.
 
 ### `train.py` — training loop
 
@@ -68,12 +68,8 @@ os.environ['CKPT_DIR'] = '/content/drive/MyDrive/pitch_sequence/checkpoints'
 | `--workers` | 4 | DataLoader workers (use 0 on Windows) |
 | `--warmup-steps` | 1000 | Linear warmup steps |
 | `--grad-clip` | 1.0 | Gradient norm clip |
-| `--gamma` | 2.0 | Focal-loss focusing parameter (0 = plain weighted CE) |
-| `--class-weight-power` | 0.0 | Exponent on inverse-freq class weights (1 = raw, 0.5 = sqrt softening, 0 = uniform). Default 0 → focal handles imbalance alone |
 | `--d-model` | 256 | Batter encoder width |
-| `--resume` | None | Path to checkpoint to resume from (must match current architecture) |
-
-**Default loss configuration** is focal-only: `--gamma 2.0` with `--class-weight-power 0.0` (uniform class weights). To instead use weighted cross-entropy, set `--gamma 0` and `--class-weight-power` to `0.5` or `1.0`.
+| `--resume` | None | Path to checkpoint to resume from |
 
 **Scheduler:** Linear warmup from `1e-3 × lr` to `lr` over `--warmup-steps`, then cosine annealing to 0.
 

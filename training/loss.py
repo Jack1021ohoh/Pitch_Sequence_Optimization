@@ -1,13 +1,8 @@
 """Multi-task loss: classification + physics NLL + calibration regularization.
 
-Total loss = w_cls * (outcome_focal + location_focal)
+Total loss = w_cls * (outcome_CE + location_CE)
            + w_phy * (EV_NLL + LA_NLL)   [contact pitches only]
            + w_cal * ECE                  [outcome head only]
-
-Classification uses focal loss: it down-weights easy, high-confidence pitches
-(ball/strike/field-out) so the gradient is not dominated by frequent classes,
-which lifts recall on rare contact classes (double, triple, HR). The class
-weights act as the focal alpha term; gamma=0 recovers plain weighted CE.
 """
 
 import torch
@@ -15,37 +10,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from models.full_model import N_MOG_COMPONENTS
-
-
-def focal_loss(
-    logits:       torch.Tensor,
-    targets:      torch.Tensor,
-    gamma:        float = 2.0,
-    weight:       torch.Tensor = None,
-    ignore_index: int = -1,
-) -> torch.Tensor:
-    """Multi-class focal loss with optional per-class alpha weights.
-
-    FL = alpha_t * (1 - p_t)^gamma * (-log p_t), averaged over valid samples.
-    With weights, normalizes by the sum of alpha (matching weighted-CE scale).
-    gamma=0 reduces to (weighted) cross-entropy.
-    """
-    valid = targets != ignore_index
-    if not valid.any():
-        return logits.new_zeros(())
-
-    logits  = logits[valid]
-    targets = targets[valid]
-
-    log_p  = F.log_softmax(logits, dim=-1)
-    log_pt = log_p.gather(1, targets.unsqueeze(1)).squeeze(1)
-    pt     = log_pt.exp()
-    loss   = (1.0 - pt).pow(gamma) * (-log_pt)
-
-    if weight is not None:
-        alpha = weight[targets]
-        return (alpha * loss).sum() / alpha.sum().clamp_min(1e-8)
-    return loss.mean()
 
 
 def mog_nll(params: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
@@ -97,7 +61,6 @@ class MultiTaskLoss(nn.Module):
         w_classification: float = 0.7,
         w_physics:        float = 0.2,
         w_calibration:    float = 0.1,
-        gamma:            float = 2.0,
         outcome_weights:  torch.Tensor = None,
         location_weights: torch.Tensor = None,
     ):
@@ -105,16 +68,15 @@ class MultiTaskLoss(nn.Module):
         self.w_cls = w_classification
         self.w_phy = w_physics
         self.w_cal = w_calibration
-        self.gamma = gamma
         self.register_buffer('outcome_weights',  outcome_weights)
         self.register_buffer('location_weights', location_weights)
 
     def forward(self, preds: dict, batch: dict) -> dict:
         cls_loss = (
-            focal_loss(preds['pitch_outcome_logits'], batch['pitch_outcome_label'],
-                       gamma=self.gamma, weight=self.outcome_weights,  ignore_index=-1) +
-            focal_loss(preds['hit_location_logits'],  batch['hit_location_label'],
-                       gamma=self.gamma, weight=self.location_weights, ignore_index=-1)
+            F.cross_entropy(preds['pitch_outcome_logits'], batch['pitch_outcome_label'],
+                            weight=self.outcome_weights,  ignore_index=-1) +
+            F.cross_entropy(preds['hit_location_logits'],  batch['hit_location_label'],
+                            weight=self.location_weights, ignore_index=-1)
         )
 
         contact  = batch['is_contact']
